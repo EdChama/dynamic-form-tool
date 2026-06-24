@@ -65,7 +65,7 @@ final class FormDesignerService
                 'created_by' => $user['id'],
             ]);
             $form = $template->fetch();
-            $version = $this->insertVersion($form['id'], 1, $schema, $uiSchema, $checksum, false, $user['id']);
+            $version = $this->insertVersion($form['id'], 1, $schema, $uiSchema, $checksum, false, $user['id'], $payload['versionDescription'] ?? 'Initial draft version');
             $this->syncFields($version['id'], $schema);
             $this->auditLog->record('form_template', $form['id'], 'form.created', $form, $metadata);
             $pdo->commit();
@@ -104,7 +104,7 @@ final class FormDesignerService
                 'description' => $payload['description'] ?? null,
             ]);
             $updatedForm = $template->fetch();
-            $version = $this->insertVersion($id, $nextVersion, $schema, $uiSchema, $checksum, false, $user['id']);
+            $version = $this->insertVersion($id, $nextVersion, $schema, $uiSchema, $checksum, false, $user['id'], $payload['versionDescription'] ?? "Draft version {$nextVersion}");
             $this->syncFields($version['id'], $schema);
             $this->auditLog->record('form_template', $id, 'form.version.created', ['old' => $form, 'new' => $updatedForm], $metadata);
             $pdo->commit();
@@ -175,6 +175,92 @@ final class FormDesignerService
         return $deleted;
     }
 
+    public function listVersions(string $id, array $user): array
+    {
+        $this->findEditableTemplate($id, $user);
+
+        $statement = $this->database->pdo()->prepare(<<<'SQL'
+            SELECT
+                id,
+                form_template_id,
+                version_number,
+                version_description,
+                checksum,
+                is_published,
+                published_at,
+                created_by,
+                created_at
+            FROM form_template_versions
+            WHERE form_template_id = :id
+            ORDER BY version_number DESC
+        SQL);
+        $statement->execute(['id' => $id]);
+
+        return array_map([$this, 'normalizeVersionSummary'], $statement->fetchAll());
+    }
+
+    public function getVersion(string $id, string $versionId, array $user): array
+    {
+        $form = $this->findEditableTemplate($id, $user);
+
+        $statement = $this->database->pdo()->prepare(<<<'SQL'
+            SELECT
+                id,
+                form_template_id,
+                version_number,
+                version_description,
+                schema_json::text AS schema_json,
+                ui_schema_json::text AS ui_schema_json,
+                validation_schema_json::text AS validation_schema_json,
+                checksum,
+                is_published,
+                published_at,
+                created_by,
+                created_at
+            FROM form_template_versions
+            WHERE form_template_id = :form_template_id
+              AND id = :version_id
+            LIMIT 1
+        SQL);
+        $statement->execute([
+            'form_template_id' => $id,
+            'version_id' => $versionId,
+        ]);
+        $version = $statement->fetch();
+
+        if (!$version) {
+            throw new NotFoundException('Form version not found');
+        }
+
+        $schema = json_decode($version['schema_json'], true, 512, JSON_THROW_ON_ERROR);
+        $uiSchema = $version['ui_schema_json'] !== null
+            ? json_decode($version['ui_schema_json'], true, 512, JSON_THROW_ON_ERROR)
+            : [];
+
+        return [
+            'id' => $version['id'],
+            'form_template_id' => $version['form_template_id'],
+            'version_number' => (int) $version['version_number'],
+            'version_description' => $version['version_description'],
+            'checksum' => $version['checksum'],
+            'is_published' => $this->toBool($version['is_published']),
+            'published_at' => $version['published_at'],
+            'created_at' => $version['created_at'],
+            'schema' => $schema,
+            'ui_schema' => $uiSchema,
+            'definition' => [
+                'name' => $form['name'],
+                'slug' => $form['slug'],
+                'title' => $schema['title'] ?? $form['name'],
+                'description' => $schema['description'] ?? $form['description'],
+                'submitLabel' => $uiSchema['submitLabel'] ?? 'Submit form',
+                'versionDescription' => $version['version_description'],
+                'fields' => $schema['fields'] ?? [],
+                'actions' => $schema['actions'] ?? [['type' => 'store_submission', 'label' => 'Store submission']],
+            ],
+        ];
+    }
+
     private function findEditableTemplate(string $id, array $user): array
     {
         $statement = $this->database->pdo()->prepare('SELECT * FROM form_templates WHERE id = :id AND deleted_at IS NULL LIMIT 1');
@@ -235,7 +321,7 @@ final class FormDesignerService
         ];
     }
 
-    private function insertVersion(string $templateId, int $version, array $schema, array $uiSchema, string $checksum, bool $published, ?string $createdBy): array
+    private function insertVersion(string $templateId, int $version, array $schema, array $uiSchema, string $checksum, bool $published, ?string $createdBy, ?string $versionDescription): array
     {
         $statement = $this->database->pdo()->prepare(<<<'SQL'
             INSERT INTO form_template_versions (
@@ -244,6 +330,7 @@ final class FormDesignerService
                 schema_json,
                 ui_schema_json,
                 validation_schema_json,
+                version_description,
                 checksum,
                 is_published,
                 published_at,
@@ -255,12 +342,13 @@ final class FormDesignerService
                 CAST(:schema_json AS jsonb),
                 CAST(:ui_schema_json AS jsonb),
                 CAST(:validation_schema_json AS jsonb),
+                :version_description,
                 :checksum,
                 :is_published,
                 CASE WHEN CAST(:is_published AS boolean) THEN now() ELSE NULL END,
                 :created_by
             )
-            RETURNING id, form_template_id, version_number, is_published, created_at
+            RETURNING id, form_template_id, version_number, version_description, is_published, created_at
         SQL);
         $statement->execute([
             'form_template_id' => $templateId,
@@ -268,6 +356,7 @@ final class FormDesignerService
             'schema_json' => json_encode($schema, JSON_THROW_ON_ERROR),
             'ui_schema_json' => json_encode($uiSchema, JSON_THROW_ON_ERROR),
             'validation_schema_json' => json_encode($schema['fields'], JSON_THROW_ON_ERROR),
+            'version_description' => $versionDescription,
             'checksum' => $checksum,
             'is_published' => $published ? 'true' : 'false',
             'created_by' => $createdBy,
@@ -302,6 +391,19 @@ final class FormDesignerService
         $statement->execute(['id' => $templateId]);
 
         return (int) $statement->fetchColumn();
+    }
+
+    private function normalizeVersionSummary(array $version): array
+    {
+        $version['version_number'] = (int) $version['version_number'];
+        $version['is_published'] = $this->toBool($version['is_published']);
+
+        return $version;
+    }
+
+    private function toBool(mixed $value): bool
+    {
+        return $value === true || $value === 1 || $value === '1' || $value === 't' || $value === 'true';
     }
 
     private function slugify(string $value): string

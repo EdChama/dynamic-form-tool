@@ -430,6 +430,84 @@ textarea {
   background: #f8fbfc;
 }
 
+.version-panel {
+  display: grid;
+  gap: 14px;
+  border: 1px solid #cfe1d8;
+  border-radius: 8px;
+  padding: 16px;
+  background: #f3fbf7;
+}
+
+.version-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.version-panel-header h3,
+.version-preview p,
+.preview-field p {
+  margin: 0;
+}
+
+.version-panel label {
+  display: grid;
+  gap: 8px;
+  color: #24343d;
+  font-weight: 700;
+}
+
+.version-panel select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #bcd2c7;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #ffffff;
+}
+
+.version-preview {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid #cfe1d8;
+  padding-top: 14px;
+}
+
+.preview-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.preview-field {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 10px;
+  align-items: start;
+  border: 1px solid #dbe8e1;
+  border-radius: 8px;
+  padding: 10px;
+  background: #ffffff;
+}
+
+.preview-order {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #216e52;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.preview-field small {
+  color: #516570;
+}
+
 .checkbox-line {
   grid-template-columns: auto 1fr;
   align-items: center;

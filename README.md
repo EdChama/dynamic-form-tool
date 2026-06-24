@@ -62,6 +62,8 @@ docker compose exec frontend npm run build
 - `GET /api/admin/forms`: list forms editable by the current user
 - `POST /api/admin/forms`: create a draft form/template
 - `PUT /api/admin/forms/{id}`: create a new draft version for an existing form
+- `GET /api/admin/forms/{id}/versions`: list immutable saved versions
+- `GET /api/admin/forms/{id}/versions/{versionId}`: view one saved version with schema and validation metadata
 - `POST /api/admin/forms/{id}/publish`: publish the latest version
 - `DELETE /api/admin/forms/{id}`: soft-delete/archive an editable form
 - `GET /api/forms`: list active forms
@@ -99,6 +101,7 @@ Admin users and form managers can design forms in the frontend builder. A form d
 
 Saving a form creates a draft version. Publishing marks the latest version active for public submission. Editing a published form creates a new immutable version instead of changing old submissions.
 Deleting a form archives it with `deleted_at`; historical submissions remain stored for audit integrity.
+Each saved version can include a version description explaining what changed or what the copy is for. In the Builder, creators can select a saved version, load it as an editable copy, and preview the field order, labels, types, options, and validation rules.
 
 Seeded local credentials:
 

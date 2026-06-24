@@ -5,6 +5,8 @@ import type {
   BuilderDefinition,
   EditableFormSummary,
   FormSummary,
+  FormVersionDetail,
+  FormVersionSummary,
   PublicForm,
   SubmissionPayload,
 } from '../types/forms';
@@ -71,6 +73,14 @@ export const apiClient = {
     return request(`/admin/forms/${formId}`, {
       method: 'DELETE',
     }, token);
+  },
+
+  listFormVersions(token: string, formId: string): Promise<FormVersionSummary[]> {
+    return request<FormVersionSummary[]>(`/admin/forms/${formId}/versions`, undefined, token);
+  },
+
+  getFormVersion(token: string, formId: string, versionId: string): Promise<FormVersionDetail> {
+    return request<FormVersionDetail>(`/admin/forms/${formId}/versions/${versionId}`, undefined, token);
   },
 
   listForms(): Promise<FormSummary[]> {

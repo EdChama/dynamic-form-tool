@@ -90,6 +90,20 @@ final class ApiKernel
                 return;
             }
 
+            if ($method === 'GET' && preg_match('#^/api/admin/forms/([0-9a-fA-F-]{36})/versions$#', $path, $matches)) {
+                $user = $this->currentUser();
+                $this->auth->requireRole($user, ['admin', 'form_manager']);
+                $this->responses->success($this->designer->listVersions($matches[1], $user), 'Form versions retrieved');
+                return;
+            }
+
+            if ($method === 'GET' && preg_match('#^/api/admin/forms/([0-9a-fA-F-]{36})/versions/([0-9a-fA-F-]{36})$#', $path, $matches)) {
+                $user = $this->currentUser();
+                $this->auth->requireRole($user, ['admin', 'form_manager']);
+                $this->responses->success($this->designer->getVersion($matches[1], $matches[2], $user), 'Form version retrieved');
+                return;
+            }
+
             if ($method === 'POST' && preg_match('#^/api/admin/forms/([0-9a-fA-F-]{36})/publish$#', $path, $matches)) {
                 $user = $this->currentUser();
                 $this->auth->requireRole($user, ['admin', 'form_manager']);

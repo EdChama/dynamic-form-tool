@@ -82,6 +82,8 @@ Seed data is in `database/seeds/001_beneficial_ownership_form.sql`.
 | `GET` | `/api/admin/forms` | List editable forms for admin/form manager |
 | `POST` | `/api/admin/forms` | Create draft form and version |
 | `PUT` | `/api/admin/forms/{id}` | Create new draft version |
+| `GET` | `/api/admin/forms/{id}/versions` | List immutable saved versions |
+| `GET` | `/api/admin/forms/{id}/versions/{versionId}` | View one version with schema preview data |
 | `POST` | `/api/admin/forms/{id}/publish` | Publish latest version |
 | `DELETE` | `/api/admin/forms/{id}` | Soft-delete/archive editable form |
 | `GET` | `/api/forms` | List active forms |
@@ -119,6 +121,8 @@ Authenticated admins and form managers can create form templates and fields from
 
 Editing a form creates a new version. The original version remains available for old submissions. A `form_manager` can only edit forms where `created_by` matches their user ID. An `admin` can edit and publish any form.
 Deleting a form sets `status = archived` and `deleted_at = now()`. It does not delete submissions or version snapshots.
+
+Each version stores `version_description` in addition to `schema_json`, `ui_schema_json`, `validation_schema_json`, checksum, publish state, and timestamps. The version detail endpoint returns a normalized builder definition so the frontend can load any saved version as an editable copy while preserving the original immutable row.
 
 ## Auth, Roles, and CI4 Shield
 

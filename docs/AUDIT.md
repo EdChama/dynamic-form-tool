@@ -11,6 +11,8 @@ When a submission is created, the backend:
 
 If the form changes later, the system creates a new row in `form_template_versions`. Existing submissions continue to reference the exact version that produced them.
 
+Form versions are saved as immutable copies with a version number, checksum, optional version description, schema JSON, UI schema JSON, validation metadata, and publish timestamp. Admins and form creators can inspect previous versions without mutating them.
+
 Important audit events:
 
 - `form.created`

@@ -1,6 +1,6 @@
-import { Plus, Save, Send, Trash2 } from 'lucide-react';
+import { Eye, Plus, Save, Send, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import type { BuilderDefinition, EditableFormSummary, FieldType, FormField } from '../../types/forms';
+import type { BuilderDefinition, EditableFormSummary, FieldType, FormField, FormVersionDetail, FormVersionSummary } from '../../types/forms';
 
 const fieldTypes: FieldType[] = ['text', 'textarea', 'number', 'select', 'checkbox', 'date', 'email'];
 
@@ -17,6 +17,7 @@ const initialDefinition: BuilderDefinition = {
   name: 'New dynamic form',
   title: 'New dynamic form',
   description: '',
+  versionDescription: 'Initial draft version',
   submitLabel: 'Submit form',
   fields: [blankField()],
   actions: [{ type: 'store_submission', label: 'Store submission' }],
@@ -27,12 +28,16 @@ interface FormBuilderProps {
   onSave: (definition: BuilderDefinition, formId?: string) => Promise<void>;
   onPublish: (formId: string) => Promise<void>;
   onDelete: (formId: string) => Promise<void>;
+  onLoadVersions: (formId: string) => Promise<FormVersionSummary[]>;
+  onLoadVersion: (formId: string, versionId: string) => Promise<FormVersionDetail>;
   onRefresh: () => Promise<void>;
 }
 
-export function FormBuilder({ forms, onSave, onPublish, onDelete, onRefresh }: FormBuilderProps) {
+export function FormBuilder({ forms, onSave, onPublish, onDelete, onLoadVersions, onLoadVersion, onRefresh }: FormBuilderProps) {
   const [selectedFormId, setSelectedFormId] = useState<string>('');
   const [definition, setDefinition] = useState<BuilderDefinition>(initialDefinition);
+  const [versions, setVersions] = useState<FormVersionSummary[]>([]);
+  const [selectedVersion, setSelectedVersion] = useState<FormVersionDetail | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
   function updateField(index: number, patch: Partial<FormField>) {
@@ -69,6 +74,9 @@ export function FormBuilder({ forms, onSave, onPublish, onDelete, onRefresh }: F
     await onSave(definition, selectedFormId || undefined);
     setStatus('Draft saved');
     await onRefresh();
+    if (selectedFormId) {
+      setVersions(await onLoadVersions(selectedFormId));
+    }
   }
 
   async function publish() {
@@ -80,6 +88,7 @@ export function FormBuilder({ forms, onSave, onPublish, onDelete, onRefresh }: F
     await onPublish(selectedFormId);
     setStatus('Published');
     await onRefresh();
+    setVersions(await onLoadVersions(selectedFormId));
   }
 
   async function deleteSelectedForm() {
@@ -97,16 +106,47 @@ export function FormBuilder({ forms, onSave, onPublish, onDelete, onRefresh }: F
     setStatus('Deleting...');
     await onDelete(selectedFormId);
     setSelectedFormId('');
+    setVersions([]);
+    setSelectedVersion(null);
     setDefinition(initialDefinition);
     setStatus('Form deleted');
     await onRefresh();
+  }
+
+  async function selectForm(form: EditableFormSummary) {
+    setSelectedFormId(form.id);
+    setSelectedVersion(null);
+    setDefinition({
+      ...initialDefinition,
+      name: form.name,
+      title: form.name,
+      description: form.description ?? '',
+      versionDescription: '',
+    });
+
+    const loadedVersions = await onLoadVersions(form.id);
+    setVersions(loadedVersions);
+
+    if (loadedVersions[0]) {
+      await selectVersion(form.id, loadedVersions[0].id);
+    }
+  }
+
+  async function selectVersion(formId: string, versionId: string) {
+    const version = await onLoadVersion(formId, versionId);
+    setSelectedVersion(version);
+    setDefinition({
+      ...version.definition,
+      versionDescription: version.definition.versionDescription ?? `Copy of version ${version.version_number}`,
+    });
+    setStatus(`Loaded version ${version.version_number} as an editable copy`);
   }
 
   return (
     <section className="builder-layout">
       <div className="builder-list">
         <h2>Designed forms</h2>
-        <button className="secondary-button" type="button" onClick={() => { setSelectedFormId(''); setDefinition(initialDefinition); }}>
+        <button className="secondary-button" type="button" onClick={() => { setSelectedFormId(''); setVersions([]); setSelectedVersion(null); setDefinition(initialDefinition); }}>
           <Plus size={16} /> New form
         </button>
         {forms.map((form) => (
@@ -114,15 +154,7 @@ export function FormBuilder({ forms, onSave, onPublish, onDelete, onRefresh }: F
             key={form.id}
             className={selectedFormId === form.id ? 'form-list-item light active' : 'form-list-item light'}
             type="button"
-            onClick={() => {
-              setSelectedFormId(form.id);
-              setDefinition({
-                ...initialDefinition,
-                name: form.name,
-                title: form.name,
-                description: form.description ?? '',
-              });
-            }}
+            onClick={() => void selectForm(form)}
           >
             <strong>{form.name}</strong>
             <span>{form.status} · v{form.latest_version}</span>
@@ -164,7 +196,59 @@ export function FormBuilder({ forms, onSave, onPublish, onDelete, onRefresh }: F
             Description
             <textarea value={definition.description ?? ''} onChange={(event) => setDefinition({ ...definition, description: event.target.value })} />
           </label>
+          <label className="wide">
+            Version description
+            <textarea
+              value={definition.versionDescription ?? ''}
+              placeholder="Describe what changed or what this version is for"
+              onChange={(event) => setDefinition({ ...definition, versionDescription: event.target.value })}
+            />
+          </label>
         </div>
+
+        {selectedFormId ? (
+          <div className="version-panel">
+            <div className="version-panel-header">
+              <div>
+                <p className="eyebrow">Version tracking</p>
+                <h3>Saved copies</h3>
+              </div>
+              <Eye size={18} aria-hidden="true" />
+            </div>
+            <label>
+              Select version to preview or copy into editor
+              <select
+                value={selectedVersion?.id ?? ''}
+                onChange={(event) => void selectVersion(selectedFormId, event.target.value)}
+              >
+                <option value="" disabled>Select a version</option>
+                {versions.map((version) => (
+                  <option key={version.id} value={version.id}>
+                    v{version.version_number}{version.is_published ? ' published' : ' draft'} - {version.version_description || 'No description'}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {selectedVersion ? (
+              <div className="version-preview">
+                <strong>Previewing version {selectedVersion.version_number}</strong>
+                <p>{selectedVersion.version_description || 'No version description provided.'}</p>
+                <div className="preview-fields">
+                  {selectedVersion.schema.fields.map((field, index) => (
+                    <div className="preview-field" key={`${selectedVersion.id}-${field.key}`}>
+                      <span className="preview-order">{index + 1}</span>
+                      <div>
+                        <strong>{field.label}</strong>
+                        <p>{field.key} · {field.type}</p>
+                        <small>{formatValidation(field)}</small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="field-builder-list">
           {definition.fields.map((field, index) => (
@@ -240,4 +324,17 @@ export function FormBuilder({ forms, onSave, onPublish, onDelete, onRefresh }: F
       </div>
     </section>
   );
+}
+
+function formatValidation(field: FormField): string {
+  const validation = field.validation ?? {};
+  const rules = Object.entries(validation)
+    .filter(([, value]) => value !== undefined && value !== false && value !== '')
+    .map(([key, value]) => `${key}: ${String(value)}`);
+
+  if (field.type === 'select' && field.options?.length) {
+    rules.push(`options: ${field.options.map((option) => option.value).join(', ')}`);
+  }
+
+  return rules.length > 0 ? rules.join(' | ') : 'No validation rules set';
 }

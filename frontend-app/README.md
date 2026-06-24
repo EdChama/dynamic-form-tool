@@ -102,6 +102,8 @@ The builder supports:
 - field key, label, placeholder, select options, required flag, min/max length, and min/max number
 - draft save and publish actions
 - soft-delete/archive for forms the current user can edit
+- version description for each saved copy
+- version selector and preview showing field order, field type, labels, options, and validation rules
 
 Seeded development login:
 

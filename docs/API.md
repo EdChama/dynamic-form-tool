@@ -50,6 +50,14 @@ Creates a draft form template and first immutable version.
 
 Creates a new draft version for an editable form.
 
+### GET /admin/forms/{id}/versions
+
+Lists immutable versions for an editable form, including version number, description, checksum, publish status, and timestamps.
+
+### GET /admin/forms/{id}/versions/{versionId}
+
+Returns one immutable version with schema, UI schema, validation schema, and a normalized builder definition for preview/copy editing.
+
 ### POST /admin/forms/{id}/publish
 
 Publishes the latest form version.

@@ -20,6 +20,8 @@ Form versioning is intentionally explicit:
 
 This prevents a later form edit from changing the meaning of an older submission.
 
+Each version can include a human description of the change or intended use. The editor treats saved versions as immutable copies: users can select a version, preview its field placement and validation rules, and load it into the editor to create a new version.
+
 ## Service Boundaries
 
 Controllers should remain thin and delegate to services:

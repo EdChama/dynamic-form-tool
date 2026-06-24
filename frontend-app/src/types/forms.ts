@@ -103,7 +103,29 @@ export interface BuilderDefinition {
   slug?: string;
   title: string;
   description?: string;
+  versionDescription?: string;
   submitLabel?: string;
   fields: FormField[];
   actions: FormAction[];
+}
+
+export interface FormVersionSummary {
+  id: string;
+  form_template_id: string;
+  version_number: number;
+  version_description?: string | null;
+  checksum: string;
+  is_published: boolean;
+  published_at?: string | null;
+  created_by?: string | null;
+  created_at: string;
+}
+
+export interface FormVersionDetail extends FormVersionSummary {
+  schema: FormSchema;
+  ui_schema?: {
+    layout?: string;
+    submitLabel?: string;
+  } | null;
+  definition: BuilderDefinition;
 }

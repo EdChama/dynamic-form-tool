@@ -71,6 +71,7 @@ INSERT INTO form_template_versions (
     schema_json,
     ui_schema_json,
     validation_schema_json,
+    version_description,
     checksum,
     is_published,
     published_at
@@ -156,6 +157,7 @@ VALUES (
     }
     $json$::jsonb,
     NULL,
+    'Initial published beneficial ownership declaration version with identity, ownership, PEP, and relationship fields.',
     'beneficial-ownership-v1-checksum',
     true,
     now()
@@ -163,6 +165,7 @@ VALUES (
 ON CONFLICT (id) DO UPDATE SET
     schema_json = EXCLUDED.schema_json,
     ui_schema_json = EXCLUDED.ui_schema_json,
+    version_description = EXCLUDED.version_description,
     checksum = EXCLUDED.checksum,
     is_published = EXCLUDED.is_published,
     published_at = EXCLUDED.published_at;

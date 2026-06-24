@@ -130,6 +130,22 @@ export function App() {
     await loadForms();
   }
 
+  async function loadBuilderVersions(formId: string) {
+    if (!token) {
+      throw new Error('Login required');
+    }
+
+    return apiClient.listFormVersions(token, formId);
+  }
+
+  async function loadBuilderVersion(formId: string, versionId: string) {
+    if (!token) {
+      throw new Error('Login required');
+    }
+
+    return apiClient.getFormVersion(token, formId, versionId);
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar" aria-label="Available forms">
@@ -214,6 +230,8 @@ export function App() {
               onSave={saveBuilderForm}
               onPublish={publishBuilderForm}
               onDelete={deleteBuilderForm}
+              onLoadVersions={loadBuilderVersions}
+              onLoadVersion={loadBuilderVersion}
               onRefresh={() => loadEditableForms()}
             />
           </>
