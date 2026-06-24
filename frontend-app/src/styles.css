@@ -24,6 +24,13 @@ textarea {
   font: inherit;
 }
 
+input,
+select,
+textarea {
+  font-weight: 400;
+  line-height: 1.35;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: minmax(260px, 320px) 1fr;
@@ -214,7 +221,7 @@ textarea {
 
 .form-field label {
   color: #24343d;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .form-field input,
@@ -346,7 +353,8 @@ textarea {
   display: grid;
   gap: 8px;
   color: #24343d;
-  font-weight: 700;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .login-panel input,
@@ -358,6 +366,15 @@ textarea {
   border: 1px solid #c9d5da;
   border-radius: 8px;
   padding: 10px 12px;
+  color: #17202a;
+  background: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 400;
+}
+
+.builder-grid textarea,
+.login-panel textarea {
+  resize: vertical;
 }
 
 .builder-layout {
@@ -373,7 +390,7 @@ textarea {
   background: #ffffff;
   border: 1px solid #dbe4e8;
   border-radius: 8px;
-  padding: 18px;
+  padding: 20px;
 }
 
 .builder-list {
@@ -388,7 +405,7 @@ textarea {
 
 .builder-panel {
   display: grid;
-  gap: 22px;
+  gap: 20px;
 }
 
 .builder-header,
@@ -399,6 +416,20 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.builder-header {
+  align-items: flex-start;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #edf2f4;
+}
+
+.builder-header h2 {
+  margin-top: 4px;
+  max-width: 560px;
+  color: #17202a;
+  font-size: 1.35rem;
+  line-height: 1.25;
 }
 
 .user-strip {
@@ -427,7 +458,18 @@ textarea {
   border: 1px solid #dbe4e8;
   border-radius: 8px;
   padding: 16px;
-  background: #f8fbfc;
+  background: #fbfdfe;
+}
+
+.field-builder-top {
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e7eef1;
+}
+
+.field-builder-top strong,
+.builder-list h2 {
+  color: #17202a;
+  font-weight: 700;
 }
 
 .version-panel {
@@ -456,7 +498,8 @@ textarea {
   display: grid;
   gap: 8px;
   color: #24343d;
-  font-weight: 700;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .version-panel select {
@@ -466,6 +509,7 @@ textarea {
   border-radius: 8px;
   padding: 10px 12px;
   background: #ffffff;
+  font-weight: 400;
 }
 
 .version-preview {
