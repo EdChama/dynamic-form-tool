@@ -1,0 +1,62 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dynamic-form-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dynamic_forms}
+      POSTGRES_USER: ${POSTGRES_USER:-dynamic_forms_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_for_local_dev}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dynamic_forms_app} -d ${POSTGRES_DB:-dynamic_forms}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend-api
+    container_name: dynamic-form-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      CI_ENVIRONMENT: development
+      APP_BASE_URL: http://localhost:${BACKEND_PORT:-8080}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-dynamic_forms}
+      DB_USERNAME: ${POSTGRES_USER:-dynamic_forms_app}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-change_me_for_local_dev}
+      CORS_ALLOWED_ORIGINS: http://localhost:${FRONTEND_PORT:-5173}
+      JSON_MAX_BYTES: 1048576
+    ports:
+      - "${BACKEND_PORT:-8080}:80"
+    volumes:
+      - ./backend-api:/var/www/html
+      - backend-vendor:/var/www/html/vendor
+
+  frontend:
+    build:
+      context: ./frontend-app
+    container_name: dynamic-form-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080/api}
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend-app:/app
+      - frontend-node-modules:/app/node_modules
+
+volumes:
+  postgres-data:
+  backend-vendor:
+  frontend-node-modules:

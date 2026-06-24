@@ -1,0 +1,54 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use App\Database\Database;
+
+require __DIR__ . '/vendor/autoload.php';
+
+$command = $argv[1] ?? 'help';
+$database = new Database();
+$pdo = $database->pdo();
+
+$runSqlFiles = static function (string $directory) use ($pdo): void {
+    $files = glob($directory . '/*.sql') ?: [];
+    sort($files);
+
+    foreach ($files as $file) {
+        $sql = file_get_contents($file);
+        if ($sql === false) {
+            throw new RuntimeException("Unable to read {$file}");
+        }
+
+        $pdo->exec($sql);
+        echo basename($file) . PHP_EOL;
+    }
+};
+
+try {
+    if ($command === 'migrate') {
+        $runSqlFiles(__DIR__ . '/database/migrations');
+        echo "Migrations complete." . PHP_EOL;
+        exit(0);
+    }
+
+    if ($command === 'db:seed') {
+        $runSqlFiles(__DIR__ . '/database/seeds');
+        echo "Seed data complete." . PHP_EOL;
+        exit(0);
+    }
+
+    if ($command === 'serve') {
+        $host = '0.0.0.0';
+        $port = '8080';
+        passthru("php -S {$host}:{$port} -t public");
+        exit(0);
+    }
+
+    echo "Available commands: migrate, db:seed, serve" . PHP_EOL;
+    exit(0);
+} catch (Throwable $exception) {
+    fwrite(STDERR, $exception->getMessage() . PHP_EOL);
+    exit(1);
+}

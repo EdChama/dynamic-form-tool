@@ -1,0 +1,35 @@
+# Runtime and secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+vendor/
+node_modules/
+
+# Build output
+dist/
+build/
+coverage/
+*.tsbuildinfo
+*.result.cache
+frontend-app/vite.config.js
+frontend-app/vite.config.d.ts
+
+# CodeIgniter writable runtime files
+backend-api/writable/cache/*
+backend-api/writable/debugbar/*
+backend-api/writable/logs/*
+backend-api/writable/session/*
+backend-api/writable/uploads/*
+!backend-api/writable/cache/.gitkeep
+!backend-api/writable/debugbar/.gitkeep
+!backend-api/writable/logs/.gitkeep
+!backend-api/writable/session/.gitkeep
+!backend-api/writable/uploads/.gitkeep
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
