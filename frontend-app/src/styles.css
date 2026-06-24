@@ -310,6 +310,12 @@ textarea {
   cursor: pointer;
 }
 
+.secondary-button.danger {
+  color: #8a1f1f;
+  border-color: #f0b4b4;
+  background: #fff5f5;
+}
+
 .primary-button:disabled {
   cursor: wait;
   opacity: 0.75;

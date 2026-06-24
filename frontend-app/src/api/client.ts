@@ -67,6 +67,12 @@ export const apiClient = {
     }, token);
   },
 
+  deleteForm(token: string, formId: string): Promise<unknown> {
+    return request(`/admin/forms/${formId}`, {
+      method: 'DELETE',
+    }, token);
+  },
+
   listForms(): Promise<FormSummary[]> {
     return request<FormSummary[]>('/forms');
   },

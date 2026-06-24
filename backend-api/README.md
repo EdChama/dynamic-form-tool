@@ -83,6 +83,7 @@ Seed data is in `database/seeds/001_beneficial_ownership_form.sql`.
 | `POST` | `/api/admin/forms` | Create draft form and version |
 | `PUT` | `/api/admin/forms/{id}` | Create new draft version |
 | `POST` | `/api/admin/forms/{id}/publish` | Publish latest version |
+| `DELETE` | `/api/admin/forms/{id}` | Soft-delete/archive editable form |
 | `GET` | `/api/forms` | List active forms |
 | `GET` | `/api/forms/{slug}` | Get active published form schema |
 | `POST` | `/api/forms/{slug}/submissions` | Validate and store submission |
@@ -117,6 +118,7 @@ Authenticated admins and form managers can create form templates and fields from
 - full submissions and searchable values in `form_submissions` and `submission_field_values`
 
 Editing a form creates a new version. The original version remains available for old submissions. A `form_manager` can only edit forms where `created_by` matches their user ID. An `admin` can edit and publish any form.
+Deleting a form sets `status = archived` and `deleted_at = now()`. It does not delete submissions or version snapshots.
 
 ## Auth, Roles, and CI4 Shield
 

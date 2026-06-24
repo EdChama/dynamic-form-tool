@@ -26,10 +26,11 @@ interface FormBuilderProps {
   forms: EditableFormSummary[];
   onSave: (definition: BuilderDefinition, formId?: string) => Promise<void>;
   onPublish: (formId: string) => Promise<void>;
+  onDelete: (formId: string) => Promise<void>;
   onRefresh: () => Promise<void>;
 }
 
-export function FormBuilder({ forms, onSave, onPublish, onRefresh }: FormBuilderProps) {
+export function FormBuilder({ forms, onSave, onPublish, onDelete, onRefresh }: FormBuilderProps) {
   const [selectedFormId, setSelectedFormId] = useState<string>('');
   const [definition, setDefinition] = useState<BuilderDefinition>(initialDefinition);
   const [status, setStatus] = useState<string | null>(null);
@@ -81,6 +82,26 @@ export function FormBuilder({ forms, onSave, onPublish, onRefresh }: FormBuilder
     await onRefresh();
   }
 
+  async function deleteSelectedForm() {
+    if (!selectedFormId) {
+      setStatus('Select a saved form before deleting');
+      return;
+    }
+
+    const selected = forms.find((form) => form.id === selectedFormId);
+    const confirmed = window.confirm(`Delete "${selected?.name ?? 'this form'}"? Existing submissions remain archived for audit history.`);
+    if (!confirmed) {
+      return;
+    }
+
+    setStatus('Deleting...');
+    await onDelete(selectedFormId);
+    setSelectedFormId('');
+    setDefinition(initialDefinition);
+    setStatus('Form deleted');
+    await onRefresh();
+  }
+
   return (
     <section className="builder-layout">
       <div className="builder-list">
@@ -118,6 +139,7 @@ export function FormBuilder({ forms, onSave, onPublish, onRefresh }: FormBuilder
           <div className="button-row">
             <button className="secondary-button" type="button" onClick={save}><Save size={16} /> Save draft</button>
             <button className="primary-button compact" type="button" onClick={publish}><Send size={16} /> Publish</button>
+            <button className="secondary-button danger" type="button" onClick={deleteSelectedForm}><Trash2 size={16} /> Delete</button>
           </div>
         </div>
 

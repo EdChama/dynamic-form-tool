@@ -54,6 +54,10 @@ Creates a new draft version for an editable form.
 
 Publishes the latest form version.
 
+### DELETE /admin/forms/{id}
+
+Soft-deletes an editable form by archiving it and setting `deleted_at`.
+
 ### GET /forms
 
 Returns active forms with their latest published version summary.

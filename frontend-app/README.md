@@ -101,6 +101,7 @@ The builder supports:
 - text, textarea, number, select, checkbox, date, and email fields
 - field key, label, placeholder, select options, required flag, min/max length, and min/max number
 - draft save and publish actions
+- soft-delete/archive for forms the current user can edit
 
 Seeded development login:
 

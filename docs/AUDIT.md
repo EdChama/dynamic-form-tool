@@ -20,3 +20,4 @@ Important audit events:
 - `submission.validation_failed`
 - `submission.viewed`
 - `submission.archived`
+- `form.deleted`

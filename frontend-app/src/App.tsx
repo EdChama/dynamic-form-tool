@@ -122,6 +122,14 @@ export function App() {
     await loadForms();
   }
 
+  async function deleteBuilderForm(formId: string) {
+    if (!token) {
+      throw new Error('Login required');
+    }
+    await apiClient.deleteForm(token, formId);
+    await loadForms();
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar" aria-label="Available forms">
@@ -205,6 +213,7 @@ export function App() {
               forms={editableForms}
               onSave={saveBuilderForm}
               onPublish={publishBuilderForm}
+              onDelete={deleteBuilderForm}
               onRefresh={() => loadEditableForms()}
             />
           </>

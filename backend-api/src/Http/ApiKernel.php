@@ -97,6 +97,13 @@ final class ApiKernel
                 return;
             }
 
+            if ($method === 'DELETE' && preg_match('#^/api/admin/forms/([0-9a-fA-F-]{36})$#', $path, $matches)) {
+                $user = $this->currentUser();
+                $this->auth->requireRole($user, ['admin', 'form_manager']);
+                $this->responses->success($this->designer->delete($matches[1], $user, $this->clientMetadata()), 'Form deleted');
+                return;
+            }
+
             if ($method === 'GET' && $path === '/api/forms') {
                 $this->responses->success($this->forms->listActiveForms(), 'Forms retrieved');
                 return;
@@ -146,7 +153,7 @@ final class ApiKernel
         }
 
         header('Access-Control-Allow-Headers: Content-Type, Authorization');
-        header('Access-Control-Allow-Methods: GET, POST, PUT, OPTIONS');
+        header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
         header('Content-Type: application/json; charset=utf-8');
     }
 

@@ -152,6 +152,29 @@ final class FormDesignerService
         }
     }
 
+    public function delete(string $id, array $user, array $metadata): array
+    {
+        $form = $this->findEditableTemplate($id, $user);
+
+        $statement = $this->database->pdo()->prepare(<<<'SQL'
+            UPDATE form_templates
+            SET status = 'archived',
+                deleted_at = now(),
+                updated_at = now()
+            WHERE id = :id
+            RETURNING id, slug, name, status, deleted_at
+        SQL);
+        $statement->execute(['id' => $id]);
+        $deleted = $statement->fetch();
+
+        $this->auditLog->record('form_template', $id, 'form.deleted', [
+            'old' => $form,
+            'new' => $deleted,
+        ], $metadata);
+
+        return $deleted;
+    }
+
     private function findEditableTemplate(string $id, array $user): array
     {
         $statement = $this->database->pdo()->prepare('SELECT * FROM form_templates WHERE id = :id AND deleted_at IS NULL LIMIT 1');
