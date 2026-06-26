@@ -16,12 +16,13 @@ final class SubmissionService
         private readonly FormTemplateService $forms,
         private readonly DynamicValidationService $validator,
         private readonly AuditLogService $auditLog,
+        private readonly NotificationService $notifications,
     ) {
     }
 
-    public function create(string $slug, array $payload, array $metadata): array
+    public function create(string $slug, array $payload, array $metadata, ?string $accessKey = null): array
     {
-        $version = $this->forms->getActivePublishedVersion($slug);
+        $version = $this->forms->getActivePublishedVersion($slug, $accessKey);
         $schema = json_decode($version['schema_json'], true, 512, JSON_THROW_ON_ERROR);
         $errors = $this->validator->validate($schema, $payload);
 
@@ -86,6 +87,7 @@ final class SubmissionService
                 'form_template_id' => $version['form_template_id'],
                 'form_template_version_id' => $version['form_template_version_id'],
             ], $metadata);
+            $this->notifications->notifySubmissionCreated($version, $submission, $payload, $metadata);
 
             $pdo->commit();
 
@@ -96,9 +98,9 @@ final class SubmissionService
         }
     }
 
-    public function listForForm(string $slug): array
+    public function listForForm(string $slug, ?string $accessKey = null): array
     {
-        $version = $this->forms->getActivePublishedVersion($slug);
+        $version = $this->forms->getActivePublishedVersion($slug, $accessKey);
         $statement = $this->database->pdo()->prepare(<<<'SQL'
             SELECT
                 id,
@@ -114,6 +116,47 @@ final class SubmissionService
         $statement->execute(['form_template_id' => $version['form_template_id']]);
 
         return array_map([$this, 'decodeSubmissionRow'], $statement->fetchAll());
+    }
+
+    public function listForTemplate(string $templateId, array $user): array
+    {
+        $statement = $this->database->pdo()->prepare(<<<'SQL'
+            SELECT id, name, created_by
+            FROM form_templates
+            WHERE id = :id
+              AND deleted_at IS NULL
+            LIMIT 1
+        SQL);
+        $statement->execute(['id' => $templateId]);
+        $form = $statement->fetch();
+
+        if (!$form) {
+            throw new NotFoundException('Form not found');
+        }
+
+        if ($user['role'] !== 'admin' && $form['created_by'] !== $user['id']) {
+            throw new \App\Http\ForbiddenException('Only the creator or an admin can view submissions for this form');
+        }
+
+        $submissions = $this->database->pdo()->prepare(<<<'SQL'
+            SELECT
+                fs.id,
+                fs.form_template_id,
+                fs.form_template_version_id,
+                ftv.version_number,
+                fs.submission_reference,
+                fs.status,
+                fs.payload_json::text AS payload_json,
+                fs.created_at
+            FROM form_submissions fs
+            JOIN form_template_versions ftv ON ftv.id = fs.form_template_version_id
+            WHERE fs.form_template_id = :form_template_id
+              AND fs.deleted_at IS NULL
+            ORDER BY fs.created_at DESC
+        SQL);
+        $submissions->execute(['form_template_id' => $templateId]);
+
+        return array_map([$this, 'decodeSubmissionRow'], $submissions->fetchAll());
     }
 
     public function find(string $id): array

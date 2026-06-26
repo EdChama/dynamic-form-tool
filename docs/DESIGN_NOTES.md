@@ -14,7 +14,7 @@ The schema uses normal columns for identifiers, lifecycle state, timestamps, rel
 
 Form versioning is intentionally explicit:
 
-- `form_templates` stores form identity.
+- `form_templates` stores form identity, lifecycle status, access level, restricted-link key, and ownership.
 - `form_template_versions` stores immutable schema versions.
 - `form_submissions` references both the template and exact immutable version.
 
@@ -31,10 +31,19 @@ Controllers should remain thin and delegate to services:
 - `DynamicValidationService`: schema-driven backend validation.
 - `AuditLogService`: append-only system event recording.
 
+## Availability and Access
+
+Form creators control lifecycle with `draft`, `completed`, `archived`, and `expired`.
+Only `completed` forms with a published version can accept public submissions.
+
+Access is explicit:
+
+- `public` forms are listed and can be fetched by slug.
+- `private` forms remain hidden from public form APIs.
+- `restricted` forms are available only through a link containing the generated `access_key`.
+
 ## Future Improvements
 
-- Add authentication and role-based access control.
-- Add admin UI for creating new form versions.
 - Add rate limiting middleware backed by Redis.
 - Add field-level indexing configuration in the schema editor.
 - Add deployment manifests for a production hosting target.

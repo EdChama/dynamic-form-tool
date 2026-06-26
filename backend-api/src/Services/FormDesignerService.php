@@ -14,6 +14,7 @@ final class FormDesignerService
     public function __construct(
         private readonly Database $database,
         private readonly AuditLogService $auditLog,
+        private readonly NotificationService $notifications,
     ) {
     }
 
@@ -27,6 +28,8 @@ final class FormDesignerService
                 ft.name,
                 ft.description,
                 ft.status,
+                ft.access_level,
+                ft.access_key,
                 ft.created_by,
                 ft.created_at,
                 ft.updated_at,
@@ -49,25 +52,32 @@ final class FormDesignerService
         $schema = $this->normalizeSchema($payload);
         $uiSchema = ['layout' => 'single-column', 'submitLabel' => $payload['submitLabel'] ?? 'Submit form'];
         $checksum = hash('sha256', json_encode($schema, JSON_THROW_ON_ERROR));
+        $status = $this->normalizeStatus($payload['status'] ?? 'draft');
+        $accessLevel = $this->normalizeAccessLevel($payload['accessLevel'] ?? 'public');
+        $accessKey = trim((string) ($payload['accessKey'] ?? '')) ?: bin2hex(random_bytes(24));
         $pdo = $this->database->pdo();
         $pdo->beginTransaction();
 
         try {
             $template = $pdo->prepare(<<<'SQL'
-                INSERT INTO form_templates (slug, name, description, status, created_by)
-                VALUES (:slug, :name, :description, 'draft', :created_by)
-                RETURNING id, slug, name, description, status, created_by
+                INSERT INTO form_templates (slug, name, description, status, access_level, access_key, created_by)
+                VALUES (:slug, :name, :description, :status, :access_level, :access_key, :created_by)
+                RETURNING id, slug, name, description, status, access_level, access_key, created_by
             SQL);
             $template->execute([
                 'slug' => $slug,
                 'name' => trim($payload['name']),
                 'description' => $payload['description'] ?? null,
+                'status' => $status,
+                'access_level' => $accessLevel,
+                'access_key' => $accessKey,
                 'created_by' => $user['id'],
             ]);
             $form = $template->fetch();
-            $version = $this->insertVersion($form['id'], 1, $schema, $uiSchema, $checksum, false, $user['id'], $payload['versionDescription'] ?? 'Initial draft version');
+            $version = $this->insertVersion($form['id'], 1, $schema, $uiSchema, $checksum, $status === 'completed', $user['id'], $payload['versionDescription'] ?? 'Initial draft version');
             $this->syncFields($version['id'], $schema);
             $this->auditLog->record('form_template', $form['id'], 'form.created', $form, $metadata);
+            $this->notifications->notifyFormCreated($form, $user, $metadata);
             $pdo->commit();
 
             return ['template' => $form, 'version' => $version];
@@ -85,6 +95,9 @@ final class FormDesignerService
         $uiSchema = ['layout' => 'single-column', 'submitLabel' => $payload['submitLabel'] ?? 'Submit form'];
         $checksum = hash('sha256', json_encode($schema, JSON_THROW_ON_ERROR));
         $nextVersion = ((int) $this->latestVersionNumber($id)) + 1;
+        $status = $this->normalizeStatus($payload['status'] ?? 'draft');
+        $accessLevel = $this->normalizeAccessLevel($payload['accessLevel'] ?? $form['access_level'] ?? 'public');
+        $accessKey = trim((string) ($payload['accessKey'] ?? $form['access_key'] ?? '')) ?: bin2hex(random_bytes(24));
         $pdo = $this->database->pdo();
         $pdo->beginTransaction();
 
@@ -93,20 +106,32 @@ final class FormDesignerService
                 UPDATE form_templates
                 SET name = :name,
                     description = :description,
-                    status = 'draft',
+                    status = :status,
+                    access_level = :access_level,
+                    access_key = :access_key,
                     updated_at = now()
                 WHERE id = :id
-                RETURNING id, slug, name, description, status, created_by
+                RETURNING id, slug, name, description, status, access_level, access_key, created_by
             SQL);
             $template->execute([
                 'id' => $id,
                 'name' => trim($payload['name']),
                 'description' => $payload['description'] ?? null,
+                'status' => $status,
+                'access_level' => $accessLevel,
+                'access_key' => $accessKey,
             ]);
             $updatedForm = $template->fetch();
-            $version = $this->insertVersion($id, $nextVersion, $schema, $uiSchema, $checksum, false, $user['id'], $payload['versionDescription'] ?? "Draft version {$nextVersion}");
+            $version = $this->insertVersion($id, $nextVersion, $schema, $uiSchema, $checksum, $status === 'completed', $user['id'], $payload['versionDescription'] ?? "Draft version {$nextVersion}");
+            if ($status === 'completed') {
+                $pdo->prepare('UPDATE form_template_versions SET is_published = false WHERE form_template_id = :id AND id <> :version_id')->execute([
+                    'id' => $id,
+                    'version_id' => $version['id'],
+                ]);
+            }
             $this->syncFields($version['id'], $schema);
             $this->auditLog->record('form_template', $id, 'form.version.created', ['old' => $form, 'new' => $updatedForm], $metadata);
+            $this->notifications->notifyFormVersionCreated($updatedForm, $version, $user, $metadata);
             $pdo->commit();
 
             return ['template' => $updatedForm, 'version' => $version];
@@ -139,10 +164,11 @@ final class FormDesignerService
 
             $pdo->prepare('UPDATE form_template_versions SET is_published = false WHERE form_template_id = :id')->execute(['id' => $id]);
             $pdo->prepare('UPDATE form_template_versions SET is_published = true, published_at = now() WHERE id = :version_id')->execute(['version_id' => $version['id']]);
-            $status = $pdo->prepare("UPDATE form_templates SET status = 'active', updated_at = now() WHERE id = :id RETURNING id, slug, name, status");
+            $status = $pdo->prepare("UPDATE form_templates SET status = 'completed', updated_at = now() WHERE id = :id RETURNING id, slug, name, status, access_level, access_key");
             $status->execute(['id' => $id]);
             $form = $status->fetch();
             $this->auditLog->record('form_template_version', $version['id'], 'form.version.published', $version, $metadata);
+            $this->notifications->notifyFormPublished($form, $version, $user, $metadata);
             $pdo->commit();
 
             return ['template' => $form, 'version' => $version];
@@ -171,6 +197,7 @@ final class FormDesignerService
             'old' => $form,
             'new' => $deleted,
         ], $metadata);
+        $this->notifications->notifyFormDeleted($deleted, $user, $metadata);
 
         return $deleted;
     }
@@ -251,6 +278,9 @@ final class FormDesignerService
             'definition' => [
                 'name' => $form['name'],
                 'slug' => $form['slug'],
+                'status' => $form['status'],
+                'accessLevel' => $form['access_level'] ?? 'public',
+                'accessKey' => $form['access_key'] ?? '',
                 'title' => $schema['title'] ?? $form['name'],
                 'description' => $schema['description'] ?? $form['description'],
                 'submitLabel' => $uiSchema['submitLabel'] ?? 'Submit form',
@@ -295,6 +325,12 @@ final class FormDesignerService
             if (trim((string) ($field['label'] ?? '')) === '') {
                 $errors["fields.{$index}.label"][] = 'Field label is required';
             }
+        }
+        if (isset($payload['status']) && !in_array($payload['status'], ['draft', 'completed', 'archived', 'expired'], true)) {
+            $errors['status'][] = 'Status must be draft, completed, archived, or expired';
+        }
+        if (isset($payload['accessLevel']) && !in_array($payload['accessLevel'], ['public', 'private', 'restricted'], true)) {
+            $errors['accessLevel'][] = 'Access level must be public, private, or restricted';
         }
 
         if ($errors !== []) {
@@ -404,6 +440,20 @@ final class FormDesignerService
     private function toBool(mixed $value): bool
     {
         return $value === true || $value === 1 || $value === '1' || $value === 't' || $value === 'true';
+    }
+
+    private function normalizeStatus(mixed $status): string
+    {
+        $status = (string) $status;
+
+        return in_array($status, ['draft', 'completed', 'archived', 'expired'], true) ? $status : 'draft';
+    }
+
+    private function normalizeAccessLevel(mixed $accessLevel): string
+    {
+        $accessLevel = (string) $accessLevel;
+
+        return in_array($accessLevel, ['public', 'private', 'restricted'], true) ? $accessLevel : 'public';
     }
 
     private function slugify(string $value): string

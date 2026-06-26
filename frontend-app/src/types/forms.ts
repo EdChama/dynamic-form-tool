@@ -39,6 +39,8 @@ export interface PublicForm {
   slug: string;
   name: string;
   description?: string;
+  status: FormLifecycleStatus;
+  access_level: FormAccessLevel;
   version: number;
   version_id: string;
   schema: FormSchema;
@@ -53,7 +55,8 @@ export interface FormSummary {
   slug: string;
   name: string;
   description?: string;
-  status: string;
+  status: FormLifecycleStatus;
+  access_level: FormAccessLevel;
   form_template_version_id: string;
   version_number: number;
   published_at: string;
@@ -82,6 +85,12 @@ export interface AuthUser {
   role: 'admin' | 'form_manager' | 'viewer';
 }
 
+export interface ManagedUser extends AuthUser {
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AuthSession {
   token: string;
   expires_in_seconds: number;
@@ -93,14 +102,22 @@ export interface EditableFormSummary {
   slug: string;
   name: string;
   description?: string;
-  status: 'draft' | 'active' | 'archived';
+  status: FormLifecycleStatus;
+  access_level: FormAccessLevel;
+  access_key: string;
   created_by: string;
   latest_version: number;
 }
 
+export type FormLifecycleStatus = 'draft' | 'completed' | 'archived' | 'expired';
+export type FormAccessLevel = 'public' | 'private' | 'restricted';
+
 export interface BuilderDefinition {
   name: string;
   slug?: string;
+  status?: FormLifecycleStatus;
+  accessLevel?: FormAccessLevel;
+  accessKey?: string;
   title: string;
   description?: string;
   versionDescription?: string;
@@ -128,4 +145,28 @@ export interface FormVersionDetail extends FormVersionSummary {
     submitLabel?: string;
   } | null;
   definition: BuilderDefinition;
+}
+
+export interface NotificationItem {
+  id: string;
+  channel: 'in_app';
+  event_type: string;
+  subject: string;
+  body: string;
+  entity_type?: string | null;
+  entity_id?: string | null;
+  status: 'queued' | 'read';
+  read_at?: string | null;
+  created_at: string;
+}
+
+export interface SubmissionRecord {
+  id: string;
+  form_template_id?: string;
+  form_template_version_id?: string;
+  version_number?: number;
+  submission_reference: string;
+  status: string;
+  payload_json: SubmissionPayload;
+  created_at: string;
 }

@@ -7,8 +7,11 @@ import type {
   FormSummary,
   FormVersionDetail,
   FormVersionSummary,
+  ManagedUser,
+  NotificationItem,
   PublicForm,
   SubmissionPayload,
+  SubmissionRecord,
 } from '../types/forms';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
@@ -44,8 +47,23 @@ export const apiClient = {
     return request<AuthSession['user']>('/auth/me', undefined, token);
   },
 
+  listNotifications(token: string): Promise<NotificationItem[]> {
+    return request<NotificationItem[]>('/notifications', undefined, token);
+  },
+
+  markNotificationRead(token: string, notificationId: string): Promise<unknown> {
+    return request(`/notifications/${notificationId}/read`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }, token);
+  },
+
   listEditableForms(token: string): Promise<EditableFormSummary[]> {
     return request<EditableFormSummary[]>('/admin/forms', undefined, token);
+  },
+
+  listUsers(token: string): Promise<ManagedUser[]> {
+    return request<ManagedUser[]>('/admin/users', undefined, token);
   },
 
   createForm(token: string, definition: BuilderDefinition): Promise<unknown> {
@@ -83,16 +101,22 @@ export const apiClient = {
     return request<FormVersionDetail>(`/admin/forms/${formId}/versions/${versionId}`, undefined, token);
   },
 
+  listAdminSubmissions(token: string, formId: string): Promise<SubmissionRecord[]> {
+    return request<SubmissionRecord[]>(`/admin/forms/${formId}/submissions`, undefined, token);
+  },
+
   listForms(): Promise<FormSummary[]> {
     return request<FormSummary[]>('/forms');
   },
 
-  getForm(slug: string): Promise<PublicForm> {
-    return request<PublicForm>(`/forms/${slug}`);
+  getForm(slug: string, accessKey?: string): Promise<PublicForm> {
+    const query = accessKey ? `?access_key=${encodeURIComponent(accessKey)}` : '';
+    return request<PublicForm>(`/forms/${slug}${query}`);
   },
 
-  submitForm(slug: string, payload: SubmissionPayload): Promise<{ id: string; submission_reference: string; created_at: string }> {
-    return request(`/forms/${slug}/submissions`, {
+  submitForm(slug: string, payload: SubmissionPayload, accessKey?: string): Promise<{ id: string; submission_reference: string; created_at: string }> {
+    const query = accessKey ? `?access_key=${encodeURIComponent(accessKey)}` : '';
+    return request(`/forms/${slug}/submissions${query}`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });

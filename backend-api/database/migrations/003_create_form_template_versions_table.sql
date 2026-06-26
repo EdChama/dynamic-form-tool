@@ -10,6 +10,5 @@ CREATE TABLE IF NOT EXISTS form_template_versions (
     published_at timestamptz NULL,
     created_by UUID NULL REFERENCES users(id),
     created_at timestamptz NOT NULL DEFAULT now(),
-    CONSTRAINT form_template_versions_number_unique UNIQUE (form_template_id, version_number),
-    CONSTRAINT form_template_versions_checksum_unique UNIQUE (form_template_id, checksum)
+    CONSTRAINT form_template_versions_number_unique UNIQUE (form_template_id, version_number)
 );

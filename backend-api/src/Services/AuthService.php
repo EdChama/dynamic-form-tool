@@ -86,6 +86,24 @@ final class AuthService
         }
     }
 
+    public function listUsers(): array
+    {
+        $statement = $this->database->pdo()->query(<<<'SQL'
+            SELECT id, name, email, role, is_active, created_at, updated_at
+            FROM users
+            ORDER BY created_at DESC
+        SQL);
+
+        return array_map(static function (array $user): array {
+            $user['is_active'] = $user['is_active'] === true
+                || $user['is_active'] === 1
+                || $user['is_active'] === '1'
+                || $user['is_active'] === 't';
+
+            return $user;
+        }, $statement->fetchAll());
+    }
+
     private function publicUser(array $user): array
     {
         return [

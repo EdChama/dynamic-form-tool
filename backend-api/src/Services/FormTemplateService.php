@@ -22,12 +22,14 @@ final class FormTemplateService
                 ft.name,
                 ft.description,
                 ft.status,
+                ft.access_level,
                 ftv.id AS form_template_version_id,
                 ftv.version_number,
                 ftv.published_at
             FROM form_templates ft
             JOIN form_template_versions ftv ON ftv.form_template_id = ft.id
-            WHERE ft.status = 'active'
+            WHERE ft.status = 'completed'
+              AND ft.access_level = 'public'
               AND ft.deleted_at IS NULL
               AND ftv.is_published = true
             ORDER BY ft.name ASC, ftv.version_number DESC
@@ -36,15 +38,17 @@ final class FormTemplateService
         return $this->database->pdo()->query($sql)->fetchAll();
     }
 
-    public function getPublicForm(string $slug): array
+    public function getPublicForm(string $slug, ?string $accessKey = null): array
     {
-        $version = $this->getActivePublishedVersion($slug);
+        $version = $this->getActivePublishedVersion($slug, $accessKey);
 
         return [
             'id' => $version['form_template_id'],
             'slug' => $version['slug'],
             'name' => $version['name'],
             'description' => $version['description'],
+            'status' => $version['status'],
+            'access_level' => $version['access_level'],
             'version' => (int) $version['version_number'],
             'version_id' => $version['form_template_version_id'],
             'schema' => json_decode($version['schema_json'], true, 512, JSON_THROW_ON_ERROR),
@@ -54,7 +58,7 @@ final class FormTemplateService
         ];
     }
 
-    public function getActivePublishedVersion(string $slug): array
+    public function getActivePublishedVersion(string $slug, ?string $accessKey = null): array
     {
         $statement = $this->database->pdo()->prepare(<<<'SQL'
             SELECT
@@ -62,6 +66,10 @@ final class FormTemplateService
                 ft.slug,
                 ft.name,
                 ft.description,
+                ft.status,
+                ft.access_level,
+                ft.access_key,
+                ft.created_by,
                 ftv.id AS form_template_version_id,
                 ftv.version_number,
                 ftv.schema_json::text AS schema_json,
@@ -71,13 +79,20 @@ final class FormTemplateService
             FROM form_templates ft
             JOIN form_template_versions ftv ON ftv.form_template_id = ft.id
             WHERE ft.slug = :slug
-              AND ft.status = 'active'
+              AND ft.status = 'completed'
               AND ft.deleted_at IS NULL
               AND ftv.is_published = true
+              AND (
+                  ft.access_level = 'public'
+                  OR (ft.access_level = 'restricted' AND ft.access_key = :access_key)
+              )
             ORDER BY ftv.version_number DESC
             LIMIT 1
         SQL);
-        $statement->execute(['slug' => $slug]);
+        $statement->execute([
+            'slug' => $slug,
+            'access_key' => $accessKey,
+        ]);
         $version = $statement->fetch();
 
         if (!$version) {

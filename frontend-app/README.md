@@ -30,6 +30,8 @@ The frontend reads `VITE_API_BASE_URL` from environment variables. In Docker it 
 http://localhost:8080/api
 ```
 
+The app retries the initial forms request briefly. If the backend is still starting or applying migrations, this avoids showing a false failure during a normal cold start. If retries are exhausted, check `GET /api/health` and confirm `schema_ready` is `true`.
+
 ## Local Commands
 
 Inside the frontend container:
@@ -74,7 +76,7 @@ src/
 
 ## Rendering Model
 
-The app loads active forms with `GET /api/forms`, then fetches the selected form with `GET /api/forms/{slug}`.
+The app loads completed public forms with `GET /api/forms`, then fetches the selected form with `GET /api/forms/{slug}`. Restricted forms can be opened directly with `/?form={slug}&access_key={key}`.
 
 The renderer supports:
 
@@ -90,10 +92,19 @@ Each field is generated from `schema.fields`. Labels, required markers, accessib
 
 ## Builder Model
 
-The sidebar has two modes:
+The root URL `/` opens the authenticated dashboard when a valid token is already stored. Without a valid token it opens the admin login view. Public form filling remains available from the `Fill forms` toggle or from a direct shared form URL such as `/?form={slug}&access_key={key}`.
 
-- `Submit`: public users select and complete active published forms.
-- `Builder`: authenticated admins or form managers design forms.
+The sidebar changes by session state:
+
+- Public users see the admin login first, with a `Fill forms` toggle for public forms.
+- Authenticated admins/form managers see workspace navigation for `Dashboard`, `Forms`, `Users`, and `Notifications`.
+
+The authenticated flow is:
+
+- `Dashboard`: summary metrics and the start-to-finish lifecycle from design to submission review.
+- `Forms`: form selector/editor, version dropdown, preview modal, publication/access controls, and submissions for the selected form.
+- `Users`: admin-only user and role visibility.
+- `Notifications`: in-app system events and mark-as-read controls.
 
 The builder supports:
 
@@ -102,8 +113,16 @@ The builder supports:
 - field key, label, placeholder, select options, required flag, min/max length, and min/max number
 - draft save and publish actions
 - soft-delete/archive for forms the current user can edit
+- lifecycle status selection: draft, completed, archived, expired
+- access selection: public, private, restricted link
 - version description for each saved copy
 - version selector and preview showing field order, field type, labels, options, and validation rules
+- preview modal for the current draft before saving or publishing
+- move-up and move-down controls for changing field order
+- submission review for the selected form, including stored payload JSON and the submitted form version
+- admin user directory for role/status visibility
+- toast popups for saved drafts, published forms, archived forms, submissions, login failures, and load failures
+- dedicated notification page for signed-in admins/form managers with mark-as-read support
 
 Seeded development login:
 
@@ -122,6 +141,17 @@ Client validation provides immediate feedback for:
 - string min/max length
 
 The backend remains the final authority and may return structured field errors. Those API errors are displayed next to fields when available.
+
+## Notification UI
+
+The frontend reads notifications through:
+
+```text
+GET /api/notifications
+POST /api/notifications/{id}/read
+```
+
+Authenticated users open notifications from the left workspace navigation. The toast region uses `aria-live="polite"` and is also triggered after public submissions and builder lifecycle actions. The notification page is intentionally separate from the form builder controls so the editor can keep working while system events remain easy to audit.
 
 ## Deployment
 

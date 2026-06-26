@@ -1,8 +1,10 @@
-import { Eye, Plus, Save, Send, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Eye, Plus, Save, Send, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
-import type { BuilderDefinition, EditableFormSummary, FieldType, FormField, FormVersionDetail, FormVersionSummary } from '../../types/forms';
+import type { BuilderDefinition, EditableFormSummary, FieldType, FormAccessLevel, FormField, FormLifecycleStatus, FormVersionDetail, FormVersionSummary } from '../../types/forms';
 
 const fieldTypes: FieldType[] = ['text', 'textarea', 'number', 'select', 'checkbox', 'date', 'email'];
+const lifecycleStatuses: FormLifecycleStatus[] = ['draft', 'completed', 'archived', 'expired'];
+const accessLevels: FormAccessLevel[] = ['public', 'private', 'restricted'];
 
 const blankField = (): FormField => ({
   key: `field_${Date.now()}`,
@@ -15,6 +17,9 @@ const blankField = (): FormField => ({
 
 const initialDefinition: BuilderDefinition = {
   name: 'New dynamic form',
+  status: 'draft',
+  accessLevel: 'public',
+  accessKey: '',
   title: 'New dynamic form',
   description: '',
   versionDescription: 'Initial draft version',
@@ -31,13 +36,15 @@ interface FormBuilderProps {
   onLoadVersions: (formId: string) => Promise<FormVersionSummary[]>;
   onLoadVersion: (formId: string, versionId: string) => Promise<FormVersionDetail>;
   onRefresh: () => Promise<void>;
+  onSelectedFormChange?: (formId: string) => void;
 }
 
-export function FormBuilder({ forms, onSave, onPublish, onDelete, onLoadVersions, onLoadVersion, onRefresh }: FormBuilderProps) {
+export function FormBuilder({ forms, onSave, onPublish, onDelete, onLoadVersions, onLoadVersion, onRefresh, onSelectedFormChange }: FormBuilderProps) {
   const [selectedFormId, setSelectedFormId] = useState<string>('');
   const [definition, setDefinition] = useState<BuilderDefinition>(initialDefinition);
   const [versions, setVersions] = useState<FormVersionSummary[]>([]);
   const [selectedVersion, setSelectedVersion] = useState<FormVersionDetail | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
   function updateField(index: number, patch: Partial<FormField>) {
@@ -69,6 +76,20 @@ export function FormBuilder({ forms, onSave, onPublish, onDelete, onLoadVersions
     updateField(index, { options });
   }
 
+  function moveField(index: number, direction: -1 | 1) {
+    setDefinition((current) => {
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= current.fields.length) {
+        return current;
+      }
+
+      const fields = [...current.fields];
+      [fields[index], fields[targetIndex]] = [fields[targetIndex], fields[index]];
+
+      return { ...current, fields };
+    });
+  }
+
   async function save() {
     setStatus('Saving draft...');
     await onSave(definition, selectedFormId || undefined);
@@ -86,6 +107,7 @@ export function FormBuilder({ forms, onSave, onPublish, onDelete, onLoadVersions
     }
     setStatus('Publishing...');
     await onPublish(selectedFormId);
+    setDefinition((current) => ({ ...current, status: 'completed' }));
     setStatus('Published');
     await onRefresh();
     setVersions(await onLoadVersions(selectedFormId));
@@ -115,10 +137,14 @@ export function FormBuilder({ forms, onSave, onPublish, onDelete, onLoadVersions
 
   async function selectForm(form: EditableFormSummary) {
     setSelectedFormId(form.id);
+    onSelectedFormChange?.(form.id);
     setSelectedVersion(null);
     setDefinition({
       ...initialDefinition,
       name: form.name,
+      status: form.status,
+      accessLevel: form.access_level,
+      accessKey: form.access_key,
       title: form.name,
       description: form.description ?? '',
       versionDescription: '',
@@ -146,7 +172,7 @@ export function FormBuilder({ forms, onSave, onPublish, onDelete, onLoadVersions
     <section className="builder-layout">
       <div className="builder-list">
         <h2>Designed forms</h2>
-        <button className="secondary-button" type="button" onClick={() => { setSelectedFormId(''); setVersions([]); setSelectedVersion(null); setDefinition(initialDefinition); }}>
+        <button className="secondary-button" type="button" onClick={() => { setSelectedFormId(''); onSelectedFormChange?.(''); setVersions([]); setSelectedVersion(null); setDefinition(initialDefinition); }}>
           <Plus size={16} /> New form
         </button>
         {forms.map((form) => (
@@ -157,7 +183,7 @@ export function FormBuilder({ forms, onSave, onPublish, onDelete, onLoadVersions
             onClick={() => void selectForm(form)}
           >
             <strong>{form.name}</strong>
-            <span>{form.status} · v{form.latest_version}</span>
+            <span>{form.status} - {form.access_level} - v{form.latest_version}</span>
           </button>
         ))}
       </div>
@@ -169,6 +195,7 @@ export function FormBuilder({ forms, onSave, onPublish, onDelete, onLoadVersions
             <h2>Build fields, labels, validation, and actions</h2>
           </div>
           <div className="button-row">
+            <button className="secondary-button" type="button" onClick={() => setIsPreviewOpen(true)}><Eye size={16} /> Preview</button>
             <button className="secondary-button" type="button" onClick={save}><Save size={16} /> Save draft</button>
             <button className="primary-button compact" type="button" onClick={publish}><Send size={16} /> Publish</button>
             <button className="secondary-button danger" type="button" onClick={deleteSelectedForm}><Trash2 size={16} /> Delete</button>
@@ -189,9 +216,33 @@ export function FormBuilder({ forms, onSave, onPublish, onDelete, onLoadVersions
             <input value={definition.title} onChange={(event) => setDefinition({ ...definition, title: event.target.value })} />
           </label>
           <label>
+            Status
+            <select value={definition.status ?? 'draft'} onChange={(event) => setDefinition({ ...definition, status: event.target.value as FormLifecycleStatus })}>
+              {lifecycleStatuses.map((status) => <option key={status} value={status}>{formatLabel(status)}</option>)}
+            </select>
+          </label>
+          <label>
+            Access
+            <select value={definition.accessLevel ?? 'public'} onChange={(event) => setDefinition({ ...definition, accessLevel: event.target.value as FormAccessLevel })}>
+              {accessLevels.map((accessLevel) => <option key={accessLevel} value={accessLevel}>{formatAccessLabel(accessLevel)}</option>)}
+            </select>
+          </label>
+          <label>
             Submit label
             <input value={definition.submitLabel ?? ''} onChange={(event) => setDefinition({ ...definition, submitLabel: event.target.value })} />
           </label>
+          {definition.accessLevel === 'restricted' ? (
+            <label>
+              Restricted link key
+              <input value={definition.accessKey ?? ''} placeholder="generated when empty" onChange={(event) => setDefinition({ ...definition, accessKey: event.target.value })} />
+            </label>
+          ) : null}
+          {definition.accessLevel === 'restricted' && definition.slug && definition.accessKey ? (
+            <div className="restricted-link wide">
+              <strong>Shareable restricted link</strong>
+              <code>{`${window.location.origin}/?form=${definition.slug}&access_key=${definition.accessKey}`}</code>
+            </div>
+          ) : null}
           <label className="wide">
             Description
             <textarea value={definition.description ?? ''} onChange={(event) => setDefinition({ ...definition, description: event.target.value })} />
@@ -239,7 +290,7 @@ export function FormBuilder({ forms, onSave, onPublish, onDelete, onLoadVersions
                       <span className="preview-order">{index + 1}</span>
                       <div>
                         <strong>{field.label}</strong>
-                        <p>{field.key} · {field.type}</p>
+                        <p>{field.key} - {field.type}</p>
                         <small>{formatValidation(field)}</small>
                       </div>
                     </div>
@@ -255,14 +306,22 @@ export function FormBuilder({ forms, onSave, onPublish, onDelete, onLoadVersions
             <div className="field-builder" key={`${field.key}-${index}`}>
               <div className="field-builder-top">
                 <strong>Field {index + 1}</strong>
-                <button
-                  className="icon-button danger"
-                  type="button"
-                  aria-label="Remove field"
-                  onClick={() => setDefinition((current) => ({ ...current, fields: current.fields.filter((_, itemIndex) => itemIndex !== index) }))}
-                >
-                  <Trash2 size={16} />
-                </button>
+                <div className="field-actions">
+                  <button className="icon-button light" type="button" aria-label="Move field up" disabled={index === 0} onClick={() => moveField(index, -1)}>
+                    <ArrowUp size={16} />
+                  </button>
+                  <button className="icon-button light" type="button" aria-label="Move field down" disabled={index === definition.fields.length - 1} onClick={() => moveField(index, 1)}>
+                    <ArrowDown size={16} />
+                  </button>
+                  <button
+                    className="icon-button danger"
+                    type="button"
+                    aria-label="Remove field"
+                    onClick={() => setDefinition((current) => ({ ...current, fields: current.fields.filter((_, itemIndex) => itemIndex !== index) }))}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
               <div className="builder-grid">
                 <label>
@@ -322,8 +381,56 @@ export function FormBuilder({ forms, onSave, onPublish, onDelete, onLoadVersions
         </button>
         {status ? <div className="submit-success" role="status">{status}</div> : null}
       </div>
+
+      {isPreviewOpen ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Form preview">
+          <div className="preview-modal">
+            <div className="modal-header">
+              <div>
+                <p className="eyebrow">Preview</p>
+                <h2>{definition.title || definition.name}</h2>
+                {definition.description ? <p>{definition.description}</p> : null}
+              </div>
+              <button className="icon-button light" type="button" onClick={() => setIsPreviewOpen(false)} aria-label="Close preview">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="fields-grid">
+              {definition.fields.map((field) => (
+                <div className="form-field" key={`preview-${field.key}`}>
+                  <label>{field.label}{field.validation?.required ? ' *' : ''}</label>
+                  {renderPreviewField(field)}
+                  <small>{formatValidation(field)}</small>
+                </div>
+              ))}
+            </div>
+            <button className="primary-button" type="button" disabled>{definition.submitLabel || 'Submit form'}</button>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
+}
+
+function renderPreviewField(field: FormField) {
+  if (field.type === 'textarea') {
+    return <textarea placeholder={field.placeholder} disabled />;
+  }
+
+  if (field.type === 'select') {
+    return (
+      <select disabled defaultValue="">
+        <option value="">Select an option</option>
+        {(field.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+      </select>
+    );
+  }
+
+  if (field.type === 'checkbox') {
+    return <input type="checkbox" disabled />;
+  }
+
+  return <input type={field.type} placeholder={field.placeholder} disabled />;
 }
 
 function formatValidation(field: FormField): string {
@@ -337,4 +444,16 @@ function formatValidation(field: FormField): string {
   }
 
   return rules.length > 0 ? rules.join(' | ') : 'No validation rules set';
+}
+
+function formatLabel(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function formatAccessLabel(accessLevel: FormAccessLevel): string {
+  if (accessLevel === 'restricted') {
+    return 'Restricted link';
+  }
+
+  return formatLabel(accessLevel);
 }

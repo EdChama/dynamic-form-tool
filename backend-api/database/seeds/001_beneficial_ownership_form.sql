@@ -37,6 +37,8 @@ INSERT INTO form_templates (
     name,
     description,
     status,
+    access_level,
+    access_key,
     created_by
 )
 VALUES
@@ -45,7 +47,9 @@ VALUES
         'beneficial-ownership-declaration',
         'Beneficial Ownership Declaration Form',
         'Collects beneficial ownership and politically exposed person declaration details.',
-        'active',
+        'completed',
+        'public',
+        'beneficial-ownership-public',
         'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
     ),
     (
@@ -54,6 +58,8 @@ VALUES
         'Draft Vendor Intake Form',
         'Draft example form reserved for schema editing workflows.',
         'draft',
+        'private',
+        'draft-vendor-private',
         'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
     )
 ON CONFLICT (id) DO UPDATE SET
@@ -61,6 +67,8 @@ ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     description = EXCLUDED.description,
     status = EXCLUDED.status,
+    access_level = EXCLUDED.access_level,
+    access_key = EXCLUDED.access_key,
     created_by = EXCLUDED.created_by,
     updated_at = now();
 

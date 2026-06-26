@@ -42,4 +42,29 @@ final class AppConfig
     {
         return (int) (getenv('JSON_MAX_BYTES') ?: 1048576);
     }
+
+    public function mailTransport(): string
+    {
+        return getenv('MAIL_TRANSPORT') ?: 'log';
+    }
+
+    public function mailFromEmail(): string
+    {
+        return getenv('MAIL_FROM_EMAIL') ?: 'no-reply@dynamic-forms.local';
+    }
+
+    public function mailFromName(): string
+    {
+        return getenv('MAIL_FROM_NAME') ?: 'Dynamic Forms';
+    }
+
+    public function adminNotificationEmails(): array
+    {
+        $emails = getenv('ADMIN_NOTIFICATION_EMAILS') ?: '';
+
+        return array_values(array_filter(array_map(
+            static fn (string $email): string => mb_strtolower(trim($email)),
+            explode(',', $emails)
+        )));
+    }
 }

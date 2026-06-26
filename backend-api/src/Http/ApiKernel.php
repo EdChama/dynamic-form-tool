@@ -11,29 +11,33 @@ use App\Services\AuthService;
 use App\Services\DynamicValidationService;
 use App\Services\FormDesignerService;
 use App\Services\FormTemplateService;
+use App\Services\NotificationService;
 use App\Services\SubmissionService;
 use Throwable;
 
 final class ApiKernel
 {
     private AppConfig $config;
+    private Database $database;
     private ResponseFactory $responses;
     private AuthService $auth;
     private FormTemplateService $forms;
     private FormDesignerService $designer;
     private SubmissionService $submissions;
+    private NotificationService $notifications;
 
     public function __construct()
     {
         $this->config = new AppConfig();
-        $database = new Database($this->config);
+        $this->database = new Database($this->config);
         $this->responses = new ResponseFactory();
-        $audit = new AuditLogService($database);
-        $this->auth = new AuthService($database);
-        $this->forms = new FormTemplateService($database);
-        $this->designer = new FormDesignerService($database, $audit);
+        $audit = new AuditLogService($this->database);
+        $this->auth = new AuthService($this->database);
+        $this->forms = new FormTemplateService($this->database);
+        $this->notifications = new NotificationService($this->database, $this->config);
+        $this->designer = new FormDesignerService($this->database, $audit, $this->notifications);
         $validator = new DynamicValidationService();
-        $this->submissions = new SubmissionService($database, $this->forms, $validator, $audit);
+        $this->submissions = new SubmissionService($this->database, $this->forms, $validator, $audit, $this->notifications);
     }
 
     public function handle(): void
@@ -51,7 +55,7 @@ final class ApiKernel
             $path = rtrim($path, '/') ?: '/';
 
             if ($method === 'GET' && $path === '/api/health') {
-                $this->responses->success(['service' => 'dynamic-form-backend'], 'Backend is healthy');
+                $this->responses->success($this->healthData(), 'Backend is healthy');
                 return;
             }
 
@@ -69,10 +73,27 @@ final class ApiKernel
                 return;
             }
 
+            if ($method === 'GET' && $path === '/api/notifications') {
+                $this->responses->success($this->notifications->listForUser($this->currentUser()), 'Notifications retrieved');
+                return;
+            }
+
+            if ($method === 'POST' && preg_match('#^/api/notifications/([0-9a-fA-F-]{36})/read$#', $path, $matches)) {
+                $this->responses->success($this->notifications->markRead($matches[1], $this->currentUser()), 'Notification marked as read');
+                return;
+            }
+
             if ($method === 'GET' && $path === '/api/admin/forms') {
                 $user = $this->currentUser();
                 $this->auth->requireRole($user, ['admin', 'form_manager']);
                 $this->responses->success($this->designer->listEditable($user), 'Editable forms retrieved');
+                return;
+            }
+
+            if ($method === 'GET' && $path === '/api/admin/users') {
+                $user = $this->currentUser();
+                $this->auth->requireRole($user, ['admin']);
+                $this->responses->success($this->auth->listUsers(), 'Users retrieved');
                 return;
             }
 
@@ -94,6 +115,13 @@ final class ApiKernel
                 $user = $this->currentUser();
                 $this->auth->requireRole($user, ['admin', 'form_manager']);
                 $this->responses->success($this->designer->listVersions($matches[1], $user), 'Form versions retrieved');
+                return;
+            }
+
+            if ($method === 'GET' && preg_match('#^/api/admin/forms/([0-9a-fA-F-]{36})/submissions$#', $path, $matches)) {
+                $user = $this->currentUser();
+                $this->auth->requireRole($user, ['admin', 'form_manager']);
+                $this->responses->success($this->submissions->listForTemplate($matches[1], $user), 'Form submissions retrieved');
                 return;
             }
 
@@ -124,19 +152,19 @@ final class ApiKernel
             }
 
             if ($method === 'GET' && preg_match('#^/api/forms/([a-zA-Z0-9_-]+)$#', $path, $matches)) {
-                $this->responses->success($this->forms->getPublicForm($matches[1]), 'Form retrieved');
+                $this->responses->success($this->forms->getPublicForm($matches[1], $this->accessKey()), 'Form retrieved');
                 return;
             }
 
             if ($method === 'POST' && preg_match('#^/api/forms/([a-zA-Z0-9_-]+)/submissions$#', $path, $matches)) {
                 $payload = $this->readJsonBody();
-                $result = $this->submissions->create($matches[1], $payload, $this->clientMetadata());
+                $result = $this->submissions->create($matches[1], $payload, $this->clientMetadata(), $this->accessKey());
                 $this->responses->success($result, 'Submission created', 201);
                 return;
             }
 
             if ($method === 'GET' && preg_match('#^/api/forms/([a-zA-Z0-9_-]+)/submissions$#', $path, $matches)) {
-                $this->responses->success($this->submissions->listForForm($matches[1]), 'Submissions retrieved');
+                $this->responses->success($this->submissions->listForForm($matches[1], $this->accessKey()), 'Submissions retrieved');
                 return;
             }
 
@@ -194,6 +222,49 @@ final class ApiKernel
             'client_ip' => $_SERVER['REMOTE_ADDR'] ?? null,
             'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null,
         ];
+    }
+
+    private function accessKey(): ?string
+    {
+        $key = trim((string) ($_GET['access_key'] ?? ''));
+
+        return $key !== '' ? $key : null;
+    }
+
+    private function healthData(): array
+    {
+        $statement = $this->database->pdo()->query(<<<'SQL'
+            SELECT
+                to_regclass('public.form_templates') IS NOT NULL AS has_form_templates,
+                EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'form_templates'
+                      AND column_name = 'access_level'
+                ) AS has_access_level,
+                EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'notifications'
+                      AND column_name = 'channel'
+                ) AS has_notifications
+        SQL);
+        $schema = $statement->fetch() ?: [];
+
+        return [
+            'service' => 'dynamic-form-backend',
+            'database' => 'connected',
+            'schema_ready' => $this->toBool($schema['has_form_templates'] ?? false)
+                && $this->toBool($schema['has_access_level'] ?? false)
+                && $this->toBool($schema['has_notifications'] ?? false),
+        ];
+    }
+
+    private function toBool(mixed $value): bool
+    {
+        return $value === true || $value === 1 || $value === '1' || $value === 't' || $value === 'true';
     }
 
     private function currentUser(): array
