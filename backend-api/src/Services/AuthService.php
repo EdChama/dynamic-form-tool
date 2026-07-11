@@ -34,7 +34,7 @@ final class AuthService
 
         $insert = $this->database->pdo()->prepare(<<<'SQL'
             INSERT INTO auth_tokens (user_id, token_hash, abilities, expires_at)
-            VALUES (:user_id, :token_hash, CAST(:abilities AS jsonb), now() + interval '12 hours')
+            VALUES (:user_id, :token_hash, :abilities, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 12 HOUR))
         SQL);
         $insert->execute([
             'user_id' => $user['id'],
@@ -63,7 +63,7 @@ final class AuthService
             FROM auth_tokens at
             JOIN users u ON u.id = at.user_id
             WHERE at.token_hash = :token_hash
-              AND (at.expires_at IS NULL OR at.expires_at > now())
+              AND (at.expires_at IS NULL OR at.expires_at > CURRENT_TIMESTAMP)
             LIMIT 1
         SQL);
         $statement->execute(['token_hash' => $tokenHash]);
@@ -73,7 +73,7 @@ final class AuthService
             throw new ForbiddenException('Authentication required');
         }
 
-        $update = $this->database->pdo()->prepare('UPDATE auth_tokens SET last_used_at = now() WHERE token_hash = :token_hash');
+        $update = $this->database->pdo()->prepare('UPDATE auth_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE token_hash = :token_hash');
         $update->execute(['token_hash' => $tokenHash]);
 
         return $this->publicUser($user);
@@ -98,7 +98,8 @@ final class AuthService
             $user['is_active'] = $user['is_active'] === true
                 || $user['is_active'] === 1
                 || $user['is_active'] === '1'
-                || $user['is_active'] === 't';
+                || $user['is_active'] === 't'
+                || $user['is_active'] === 'true';
 
             return $user;
         }, $statement->fetchAll());

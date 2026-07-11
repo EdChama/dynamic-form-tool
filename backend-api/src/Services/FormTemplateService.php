@@ -31,7 +31,7 @@ final class FormTemplateService
             WHERE ft.status = 'completed'
               AND ft.access_level = 'public'
               AND ft.deleted_at IS NULL
-              AND ftv.is_published = true
+              AND ftv.is_published = TRUE
             ORDER BY ft.name ASC, ftv.version_number DESC
         SQL;
 
@@ -72,16 +72,16 @@ final class FormTemplateService
                 ft.created_by,
                 ftv.id AS form_template_version_id,
                 ftv.version_number,
-                ftv.schema_json::text AS schema_json,
-                ftv.ui_schema_json::text AS ui_schema_json,
-                ftv.validation_schema_json::text AS validation_schema_json,
+                ftv.schema_json AS schema_json,
+                ftv.ui_schema_json AS ui_schema_json,
+                ftv.validation_schema_json AS validation_schema_json,
                 ftv.checksum
             FROM form_templates ft
             JOIN form_template_versions ftv ON ftv.form_template_id = ft.id
             WHERE ft.slug = :slug
               AND ft.status = 'completed'
               AND ft.deleted_at IS NULL
-              AND ftv.is_published = true
+              AND ftv.is_published = TRUE
               AND (
                   ft.access_level = 'public'
                   OR (ft.access_level = 'restricted' AND ft.access_key = :access_key)

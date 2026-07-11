@@ -1,0 +1,52 @@
+[Fri Jul 10 21:36:09 2026] PHP 8.3.28 Development Server (http://0.0.0.0:8080) started
+[Fri Jul 10 21:36:25 2026] 127.0.0.1:49391 Accepted
+[Fri Jul 10 21:36:25 2026] 127.0.0.1:49391 [200]: GET /api/forms
+[Fri Jul 10 21:36:25 2026] 127.0.0.1:49391 Closing
+[Fri Jul 10 21:40:32 2026] 127.0.0.1:56148 Accepted
+[Fri Jul 10 21:40:32 2026] 127.0.0.1:56148 [200]: GET /api/forms
+[Fri Jul 10 21:40:32 2026] 127.0.0.1:56148 Closing
+[Fri Jul 10 21:41:07 2026] 127.0.0.1:58106 Accepted
+[Fri Jul 10 21:41:07 2026] 127.0.0.1:58106 [200]: GET /api/forms
+[Fri Jul 10 21:41:07 2026] 127.0.0.1:58106 Closing
+[Fri Jul 10 21:41:42 2026] 127.0.0.1:55018 Accepted
+[Fri Jul 10 21:41:42 2026] 127.0.0.1:55018 [204]: OPTIONS /api/forms
+[Fri Jul 10 21:41:42 2026] 127.0.0.1:55018 Closing
+[Fri Jul 10 21:41:42 2026] 127.0.0.1:50866 Accepted
+[Fri Jul 10 21:41:42 2026] 127.0.0.1:50866 [204]: OPTIONS /api/forms
+[Fri Jul 10 21:41:42 2026] 127.0.0.1:50866 Closing
+[Fri Jul 10 21:41:42 2026] 127.0.0.1:65081 Accepted
+[Fri Jul 10 21:41:42 2026] 127.0.0.1:65081 [200]: GET /api/forms
+[Fri Jul 10 21:41:42 2026] 127.0.0.1:65081 Closing
+[Fri Jul 10 21:41:42 2026] 127.0.0.1:53827 Accepted
+[Fri Jul 10 21:41:42 2026] 127.0.0.1:53827 [200]: GET /api/forms
+[Fri Jul 10 21:41:42 2026] 127.0.0.1:53827 Closing
+[Fri Jul 10 21:42:52 2026] 127.0.0.1:58390 Accepted
+[Fri Jul 10 21:42:52 2026] 127.0.0.1:58390 [204]: OPTIONS /api/forms
+[Fri Jul 10 21:42:52 2026] 127.0.0.1:58390 Closing
+[Fri Jul 10 21:42:52 2026] 127.0.0.1:60848 Accepted
+[Fri Jul 10 21:42:52 2026] 127.0.0.1:60848 [204]: OPTIONS /api/forms
+[Fri Jul 10 21:42:52 2026] 127.0.0.1:60848 Closing
+[Fri Jul 10 21:42:52 2026] 127.0.0.1:57106 Accepted
+[Fri Jul 10 21:42:52 2026] 127.0.0.1:57106 [200]: GET /api/forms
+[Fri Jul 10 21:42:52 2026] 127.0.0.1:57106 Closing
+[Fri Jul 10 21:42:52 2026] 127.0.0.1:49935 Accepted
+[Fri Jul 10 21:42:53 2026] 127.0.0.1:49935 [200]: GET /api/forms
+[Fri Jul 10 21:42:53 2026] 127.0.0.1:49935 Closing
+[Fri Jul 10 21:43:12 2026] 127.0.0.1:57363 Accepted
+[Fri Jul 10 21:43:12 2026] 127.0.0.1:57363 [204]: OPTIONS /api/forms
+[Fri Jul 10 21:43:12 2026] 127.0.0.1:57363 Closing
+[Fri Jul 10 21:43:12 2026] 127.0.0.1:55965 Accepted
+[Fri Jul 10 21:43:12 2026] 127.0.0.1:55965 [204]: OPTIONS /api/forms
+[Fri Jul 10 21:43:12 2026] 127.0.0.1:55965 Closing
+[Fri Jul 10 21:43:12 2026] 127.0.0.1:49352 Accepted
+[Fri Jul 10 21:43:12 2026] 127.0.0.1:49352 [200]: GET /api/forms
+[Fri Jul 10 21:43:12 2026] 127.0.0.1:49352 Closing
+[Fri Jul 10 21:43:12 2026] 127.0.0.1:60569 Accepted
+[Fri Jul 10 21:43:12 2026] 127.0.0.1:60569 [200]: GET /api/forms
+[Fri Jul 10 21:43:12 2026] 127.0.0.1:60569 Closing
+[Fri Jul 10 21:43:38 2026] 127.0.0.1:50190 Accepted
+[Fri Jul 10 21:43:38 2026] 127.0.0.1:50190 [204]: OPTIONS /api/forms/beneficial-ownership-declaration
+[Fri Jul 10 21:43:38 2026] 127.0.0.1:50190 Closing
+[Fri Jul 10 21:43:38 2026] 127.0.0.1:64980 Accepted
+[Fri Jul 10 21:43:38 2026] 127.0.0.1:64980 [200]: GET /api/forms/beneficial-ownership-declaration
+[Fri Jul 10 21:43:38 2026] 127.0.0.1:64980 Closing

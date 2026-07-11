@@ -8,12 +8,12 @@ final class AppConfig
 {
     public function dbHost(): string
     {
-        return getenv('DB_HOST') ?: 'postgres';
+        return getenv('DB_HOST') ?: 'mysql';
     }
 
     public function dbPort(): string
     {
-        return getenv('DB_PORT') ?: '5432';
+        return getenv('DB_PORT') ?: '3306';
     }
 
     public function dbName(): string
@@ -50,12 +50,12 @@ final class AppConfig
 
     public function mailFromEmail(): string
     {
-        return getenv('MAIL_FROM_EMAIL') ?: 'no-reply@dynamic-forms.local';
+        return getenv('MAIL_FROM_EMAIL') ?: 'no-reply@dynaform-app.edchama.site';
     }
 
     public function mailFromName(): string
     {
-        return getenv('MAIL_FROM_NAME') ?: 'Dynamic Forms';
+        return getenv('MAIL_FROM_NAME') ?: 'Dynamic Forms App';
     }
 
     public function adminNotificationEmails(): array

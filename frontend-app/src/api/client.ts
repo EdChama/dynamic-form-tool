@@ -14,7 +14,7 @@ import type {
   SubmissionRecord,
 } from '../types/forms';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://dynaform-api.edchama.site/';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://dynaform-api.edchama.site/api';
 
 async function request<T>(path: string, options?: RequestInit, token?: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b4aae977a9262c099f73189eaf082fff",
+    "content-hash": "c9aabb73fbed4f46a2a28489780fb68e",
     "packages": [
         {
             "name": "codeigniter4/framework",
@@ -2112,7 +2112,7 @@
         "php": "^8.2",
         "ext-json": "*",
         "ext-pdo": "*",
-        "ext-pdo_pgsql": "*"
+        "ext-pdo_mysql": "*"
     },
     "platform-dev": {},
     "plugin-api-version": "2.9.0"

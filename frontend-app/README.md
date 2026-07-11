@@ -15,7 +15,7 @@ React + TypeScript + Vite frontend for designing, rendering, and submitting dyna
 From the repository root:
 
 ```bash
-docker compose up --build frontend backend postgres
+docker compose up --build frontend backend mysql
 ```
 
 Open:

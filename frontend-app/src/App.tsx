@@ -38,8 +38,8 @@ export function App() {
   const [submissions, setSubmissions] = useState<SubmissionRecord[]>([]);
   const [token, setToken] = useState(() => localStorage.getItem('dynamic-form-token') ?? '');
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [email, setEmail] = useState('admin@example.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showAdminLogin, setShowAdminLogin] = useState(() => initialFormSlug === '');
   const [isLoadingForms, setIsLoadingForms] = useState(true);
   const [isLoadingForm, setIsLoadingForm] = useState(false);

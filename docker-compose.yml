@@ -1,18 +1,19 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: dynamic-form-postgres
+  mysql:
+    image: mysql:8.4
+    container_name: dynamic-form-mysql
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-dynamic_forms}
-      POSTGRES_USER: ${POSTGRES_USER:-dynamic_forms_app}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_for_local_dev}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-dynamic_forms}
+      MYSQL_USER: ${MYSQL_USER:-dynamic_forms_app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change_me_for_local_dev}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_me_root_for_local_dev}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${MYSQL_PORT:-3306}:3306"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dynamic_forms_app} -d ${POSTGRES_DB:-dynamic_forms}"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u${MYSQL_USER:-dynamic_forms_app} -p${MYSQL_PASSWORD:-change_me_for_local_dev} --silent"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,16 +24,16 @@ services:
     container_name: dynamic-form-backend
     restart: unless-stopped
     depends_on:
-      postgres:
+      mysql:
         condition: service_healthy
     environment:
       CI_ENVIRONMENT: development
       APP_BASE_URL: http://localhost:${BACKEND_PORT:-8080}
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_DATABASE: ${POSTGRES_DB:-dynamic_forms}
-      DB_USERNAME: ${POSTGRES_USER:-dynamic_forms_app}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-change_me_for_local_dev}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: ${MYSQL_DATABASE:-dynamic_forms}
+      DB_USERNAME: ${MYSQL_USER:-dynamic_forms_app}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-change_me_for_local_dev}
       CORS_ALLOWED_ORIGINS: http://localhost:${FRONTEND_PORT:-5173},http://127.0.0.1:${FRONTEND_PORT:-5173}
       JSON_MAX_BYTES: 1048576
       MAIL_TRANSPORT: ${MAIL_TRANSPORT:-log}
@@ -63,6 +64,6 @@ services:
       - frontend-node-modules:/app/node_modules
 
 volumes:
-  postgres-data:
+  mysql-data:
   backend-vendor:
   frontend-node-modules:

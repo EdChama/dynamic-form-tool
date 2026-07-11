@@ -23,7 +23,7 @@ final class Database
 
         $config = $this->config ?? new AppConfig();
         $dsn = sprintf(
-            'pgsql:host=%s;port=%s;dbname=%s',
+            'mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4',
             $config->dbHost(),
             $config->dbPort(),
             $config->dbName()
@@ -35,5 +35,14 @@ final class Database
         ]);
 
         return $this->pdo;
+    }
+
+    public function uuid(): string
+    {
+        $data = random_bytes(16);
+        $data[6] = chr((ord($data[6]) & 0x0f) | 0x40);
+        $data[8] = chr((ord($data[8]) & 0x3f) | 0x80);
+
+        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
     }
 }

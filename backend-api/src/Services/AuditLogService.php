@@ -28,8 +28,8 @@ final class AuditLogService
                 :entity_type,
                 :entity_id,
                 :action,
-                CAST(:new_values AS jsonb),
-                CAST(:metadata AS jsonb),
+                :new_values,
+                :metadata,
                 :client_ip,
                 :user_agent
             )

@@ -92,19 +92,24 @@ final class NotificationService
         $statement = $this->database->pdo()->prepare(<<<'SQL'
             UPDATE notifications
             SET status = 'read',
-                read_at = COALESCE(read_at, now()),
-                updated_at = now()
+                read_at = COALESCE(read_at, CURRENT_TIMESTAMP),
+                updated_at = CURRENT_TIMESTAMP
             WHERE id = :id
               AND user_id = :user_id
               AND channel = 'in_app'
-            RETURNING id, status, read_at
         SQL);
         $statement->execute([
             'id' => $id,
             'user_id' => $user['id'],
         ]);
 
-        return $statement->fetch() ?: [];
+        $notification = $this->database->pdo()->prepare('SELECT id, status, read_at FROM notifications WHERE id = :id AND user_id = :user_id LIMIT 1');
+        $notification->execute([
+            'id' => $id,
+            'user_id' => $user['id'],
+        ]);
+
+        return $notification->fetch() ?: [];
     }
 
     private function notifyUserAndAdmins(string $eventType, string $subject, string $body, string $entityType, string $entityId, array $user, array $metadata): void
@@ -180,8 +185,8 @@ final class NotificationService
                 :entity_id,
                 :status,
                 :provider_response,
-                CASE WHEN CAST(:sent AS boolean) THEN now() ELSE NULL END,
-                CAST(:metadata AS jsonb)
+                :sent_at,
+                :metadata
             )
         SQL);
         $statement->execute([
@@ -196,7 +201,7 @@ final class NotificationService
             'entity_id' => $entityId,
             'status' => $status,
             'provider_response' => $providerResponse,
-            'sent' => $sent ? 'true' : 'false',
+            'sent_at' => $sent ? date('Y-m-d H:i:s') : null,
             'metadata' => json_encode($metadata, JSON_THROW_ON_ERROR),
         ]);
     }
@@ -230,7 +235,7 @@ final class NotificationService
             SELECT id, name, email
             FROM users
             WHERE role = 'admin'
-              AND is_active = true
+              AND is_active = TRUE
         SQL);
         $admins = $statement->fetchAll();
 
@@ -251,7 +256,7 @@ final class NotificationService
             SELECT id, name, email
             FROM users
             WHERE id = :id
-              AND is_active = true
+              AND is_active = TRUE
             LIMIT 1
         SQL);
         $statement->execute(['id' => $id]);

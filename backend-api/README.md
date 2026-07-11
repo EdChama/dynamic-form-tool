@@ -6,7 +6,7 @@ CodeIgniter-oriented PHP REST API for the Dynamic Form Builder Engine.
 
 - PHP 8.3
 - Apache with `mod_rewrite`
-- PostgreSQL via PDO
+- MySQL via PDO
 - Composer dependencies, including `codeigniter4/framework` and `codeigniter4/shield`
 
 ## Docker Development
@@ -14,7 +14,7 @@ CodeIgniter-oriented PHP REST API for the Dynamic Form Builder Engine.
 From the repository root:
 
 ```bash
-docker compose up --build backend postgres
+docker compose up --build backend mysql
 ```
 
 The backend image runs `php spark migrate` before Apache starts when `AUTO_MIGRATE=true`. Keep this enabled for simple Docker deployments so `/api/forms` cannot start against a stale schema.
@@ -45,8 +45,8 @@ The health payload includes `schema_ready`. It should be `true` before routing f
 | --- | --- | --- |
 | `CI_ENVIRONMENT` | Runtime environment name | `development` |
 | `APP_BASE_URL` | Backend public URL | `http://localhost:8080` |
-| `DB_HOST` | PostgreSQL host | `postgres` |
-| `DB_PORT` | PostgreSQL port | `5432` |
+| `DB_HOST` | MySQL host | `mysql` |
+| `DB_PORT` | MySQL port | `3306` |
 | `DB_DATABASE` | Database name | `dynamic_forms` |
 | `DB_USERNAME` | Database user | `dynamic_forms_app` |
 | `DB_PASSWORD` | Database password | `change_me_for_local_dev` |
@@ -138,7 +138,7 @@ Authenticated admins and form managers can create form templates and fields from
 - full submissions and searchable values in `form_submissions` and `submission_field_values`
 
 Editing a form creates a new version. The original version remains available for old submissions. A `form_manager` can only edit forms where `created_by` matches their user ID. An `admin` can edit and publish any form.
-Deleting a form sets `status = archived` and `deleted_at = now()`. It does not delete submissions or version snapshots.
+Deleting a form sets `status = archived` and `deleted_at = CURRENT_TIMESTAMP`. It does not delete submissions or version snapshots.
 Submission review is available through `GET /api/admin/forms/{id}/submissions`. The route is protected by the same ownership policy as editing: admins can view every form's submissions, and form managers can view submissions for forms they created.
 
 Each version stores `version_description` in addition to `schema_json`, `ui_schema_json`, `validation_schema_json`, checksum, publish state, and timestamps. The version detail endpoint returns a normalized builder definition so the frontend can load any saved version as an editable copy while preserving the original immutable row.

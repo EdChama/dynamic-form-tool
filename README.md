@@ -6,7 +6,7 @@ Docker-first full-stack implementation for Assignment A: Dynamic Form Builder En
 
 - `backend-api`: CodeIgniter 4 REST API for form templates, immutable form versions, validation, submissions, and audit logging.
 - `frontend-app`: React + TypeScript + Vite dynamic form renderer and admin form builder.
-- `postgres`: PostgreSQL 16 database using JSONB for dynamic schemas and payloads.
+- `mysql`: MySQL 8 database using JSON columns for dynamic schemas and payloads.
 
 ## Local Docker Setup
 
@@ -125,7 +125,7 @@ Creators set access through:
 
 ## Assessment Coverage
 
-- Data modelling: PostgreSQL stores form templates/configurations in JSONB, immutable form versions, normalized field metadata, submissions, submission field values, audit logs, and notifications.
+- Data modelling: MySQL stores form templates/configurations in JSON columns, immutable form versions, normalized field metadata, submissions, submission field values, audit logs, and notifications.
 - Validation strategy: `DynamicValidationService` reads validation rules from each stored schema at runtime instead of hardcoding field-specific rules.
 - Frontend: React fetches stored form configurations, renders fields dynamically, validates client-side for fast feedback, submits to the backend, and displays loading, error, success, and notification states.
 - Backend interface: REST endpoints expose authentication, form builder operations, public/restricted form rendering, submissions, notifications, version previews, and audit-oriented reads.
@@ -190,7 +190,7 @@ For production:
 - Restrict `CORS_ALLOWED_ORIGINS` to the deployed frontend domain.
 - Place the backend behind HTTPS and a reverse proxy.
 - Keep `AUTO_MIGRATE=true` for simple Docker deployments, or set `AUTO_MIGRATE=false` only when CI/CD runs `php spark migrate` before routing traffic to the backend.
-- Persist PostgreSQL with managed storage or a managed database service.
+- Persist MySQL with managed storage or a managed database service.
 
 ## Branch and CI/CD Strategy
 

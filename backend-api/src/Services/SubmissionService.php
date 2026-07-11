@@ -48,6 +48,7 @@ final class SubmissionService
 
             $statement = $pdo->prepare(<<<'SQL'
                 INSERT INTO form_submissions (
+                    id,
                     form_template_id,
                     form_template_version_id,
                     submission_reference,
@@ -58,19 +59,21 @@ final class SubmissionService
                     user_agent
                 )
                 VALUES (
+                    :id,
                     :form_template_id,
                     :form_template_version_id,
                     :submission_reference,
-                    CAST(:payload_json AS jsonb),
-                    CAST(:validation_snapshot_json AS jsonb),
+                    :payload_json,
+                    :validation_snapshot_json,
                     'validated',
                     :client_ip,
                     :user_agent
                 )
-                RETURNING id, submission_reference, created_at
             SQL);
 
+            $submissionId = $this->database->uuid();
             $statement->execute([
+                'id' => $submissionId,
                 'form_template_id' => $version['form_template_id'],
                 'form_template_version_id' => $version['form_template_version_id'],
                 'submission_reference' => $reference,
@@ -80,7 +83,7 @@ final class SubmissionService
                 'user_agent' => $metadata['user_agent'] ?? null,
             ]);
 
-            $submission = $statement->fetch();
+            $submission = $this->findSubmissionSummary($submissionId);
             $this->insertFieldValues($pdo, $submission['id'], $schema, $payload);
 
             $this->auditLog->record('form_submission', $submission['id'], 'submission.created', [
@@ -106,7 +109,7 @@ final class SubmissionService
                 id,
                 submission_reference,
                 status,
-                payload_json::text AS payload_json,
+                payload_json AS payload_json,
                 created_at
             FROM form_submissions
             WHERE form_template_id = :form_template_id
@@ -146,7 +149,7 @@ final class SubmissionService
                 ftv.version_number,
                 fs.submission_reference,
                 fs.status,
-                fs.payload_json::text AS payload_json,
+                fs.payload_json AS payload_json,
                 fs.created_at
             FROM form_submissions fs
             JOIN form_template_versions ftv ON ftv.id = fs.form_template_version_id
@@ -167,8 +170,8 @@ final class SubmissionService
                 form_template_id,
                 form_template_version_id,
                 submission_reference,
-                payload_json::text AS payload_json,
-                validation_snapshot_json::text AS validation_snapshot_json,
+                payload_json AS payload_json,
+                validation_snapshot_json AS validation_snapshot_json,
                 status,
                 client_ip,
                 user_agent,
@@ -207,7 +210,7 @@ final class SubmissionService
                 :value_number,
                 :value_boolean,
                 :value_date,
-                CAST(:value_json AS jsonb)
+                :value_json
             )
         SQL);
 
@@ -225,7 +228,7 @@ final class SubmissionService
                 'field_key' => $key,
                 'value_text' => is_string($value) ? $value : null,
                 'value_number' => $type === 'number' && is_numeric($value) ? $value : null,
-                'value_boolean' => is_bool($value) ? ($value ? 'true' : 'false') : null,
+                'value_boolean' => is_bool($value) ? ($value ? 1 : 0) : null,
                 'value_date' => $type === 'date' && is_string($value) ? $value : null,
                 'value_json' => json_encode($value, JSON_THROW_ON_ERROR),
             ]);
@@ -243,5 +246,18 @@ final class SubmissionService
         }
 
         return $row;
+    }
+
+    private function findSubmissionSummary(string $id): array
+    {
+        $statement = $this->database->pdo()->prepare(<<<'SQL'
+            SELECT id, submission_reference, created_at
+            FROM form_submissions
+            WHERE id = :id
+            LIMIT 1
+        SQL);
+        $statement->execute(['id' => $id]);
+
+        return $statement->fetch() ?: [];
     }
 }

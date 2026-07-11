@@ -6,11 +6,11 @@ The system is split into three Docker services:
 
 - React/Vite frontend for dynamic rendering and user interaction.
 - CodeIgniter 4 backend for REST APIs, validation, persistence, and audit logging.
-- PostgreSQL for relational data and JSONB document storage.
+- MySQL for relational data and JSON document storage.
 
 ## Database Design
 
-The schema uses normal columns for identifiers, lifecycle state, timestamps, relationships, and reporting-friendly fields. Dynamic form schema and submission payloads are stored in JSONB.
+The schema uses normal columns for identifiers, lifecycle state, timestamps, relationships, and reporting-friendly fields. Dynamic form schema and submission payloads are stored in JSON columns.
 
 Form versioning is intentionally explicit:
 

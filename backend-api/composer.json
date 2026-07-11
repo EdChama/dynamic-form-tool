@@ -6,7 +6,7 @@
     "php": "^8.2",
     "ext-json": "*",
     "ext-pdo": "*",
-    "ext-pdo_pgsql": "*",
+    "ext-pdo_mysql": "*",
     "codeigniter4/framework": "^4.5",
     "codeigniter4/shield": "^1.3"
   },

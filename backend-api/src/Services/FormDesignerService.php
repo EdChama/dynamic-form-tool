@@ -59,12 +59,13 @@ final class FormDesignerService
         $pdo->beginTransaction();
 
         try {
+            $templateId = $this->database->uuid();
             $template = $pdo->prepare(<<<'SQL'
-                INSERT INTO form_templates (slug, name, description, status, access_level, access_key, created_by)
-                VALUES (:slug, :name, :description, :status, :access_level, :access_key, :created_by)
-                RETURNING id, slug, name, description, status, access_level, access_key, created_by
+                INSERT INTO form_templates (id, slug, name, description, status, access_level, access_key, created_by)
+                VALUES (:id, :slug, :name, :description, :status, :access_level, :access_key, :created_by)
             SQL);
             $template->execute([
+                'id' => $templateId,
                 'slug' => $slug,
                 'name' => trim($payload['name']),
                 'description' => $payload['description'] ?? null,
@@ -73,7 +74,7 @@ final class FormDesignerService
                 'access_key' => $accessKey,
                 'created_by' => $user['id'],
             ]);
-            $form = $template->fetch();
+            $form = $this->findTemplateSummary($templateId);
             $version = $this->insertVersion($form['id'], 1, $schema, $uiSchema, $checksum, $status === 'completed', $user['id'], $payload['versionDescription'] ?? 'Initial draft version');
             $this->syncFields($version['id'], $schema);
             $this->auditLog->record('form_template', $form['id'], 'form.created', $form, $metadata);
@@ -109,9 +110,8 @@ final class FormDesignerService
                     status = :status,
                     access_level = :access_level,
                     access_key = :access_key,
-                    updated_at = now()
+                    updated_at = CURRENT_TIMESTAMP
                 WHERE id = :id
-                RETURNING id, slug, name, description, status, access_level, access_key, created_by
             SQL);
             $template->execute([
                 'id' => $id,
@@ -121,10 +121,10 @@ final class FormDesignerService
                 'access_level' => $accessLevel,
                 'access_key' => $accessKey,
             ]);
-            $updatedForm = $template->fetch();
+            $updatedForm = $this->findTemplateSummary($id);
             $version = $this->insertVersion($id, $nextVersion, $schema, $uiSchema, $checksum, $status === 'completed', $user['id'], $payload['versionDescription'] ?? "Draft version {$nextVersion}");
             if ($status === 'completed') {
-                $pdo->prepare('UPDATE form_template_versions SET is_published = false WHERE form_template_id = :id AND id <> :version_id')->execute([
+                $pdo->prepare('UPDATE form_template_versions SET is_published = FALSE WHERE form_template_id = :id AND id <> :version_id')->execute([
                     'id' => $id,
                     'version_id' => $version['id'],
                 ]);
@@ -162,11 +162,10 @@ final class FormDesignerService
                 throw new NotFoundException('Form version not found');
             }
 
-            $pdo->prepare('UPDATE form_template_versions SET is_published = false WHERE form_template_id = :id')->execute(['id' => $id]);
-            $pdo->prepare('UPDATE form_template_versions SET is_published = true, published_at = now() WHERE id = :version_id')->execute(['version_id' => $version['id']]);
-            $status = $pdo->prepare("UPDATE form_templates SET status = 'completed', updated_at = now() WHERE id = :id RETURNING id, slug, name, status, access_level, access_key");
-            $status->execute(['id' => $id]);
-            $form = $status->fetch();
+            $pdo->prepare('UPDATE form_template_versions SET is_published = FALSE WHERE form_template_id = :id')->execute(['id' => $id]);
+            $pdo->prepare('UPDATE form_template_versions SET is_published = TRUE, published_at = CURRENT_TIMESTAMP WHERE id = :version_id')->execute(['version_id' => $version['id']]);
+            $pdo->prepare("UPDATE form_templates SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = :id")->execute(['id' => $id]);
+            $form = $this->findTemplateSummary($id);
             $this->auditLog->record('form_template_version', $version['id'], 'form.version.published', $version, $metadata);
             $this->notifications->notifyFormPublished($form, $version, $user, $metadata);
             $pdo->commit();
@@ -185,13 +184,12 @@ final class FormDesignerService
         $statement = $this->database->pdo()->prepare(<<<'SQL'
             UPDATE form_templates
             SET status = 'archived',
-                deleted_at = now(),
-                updated_at = now()
+                deleted_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
             WHERE id = :id
-            RETURNING id, slug, name, status, deleted_at
         SQL);
         $statement->execute(['id' => $id]);
-        $deleted = $statement->fetch();
+        $deleted = $this->findTemplateSummary($id, 'id, slug, name, status, deleted_at');
 
         $this->auditLog->record('form_template', $id, 'form.deleted', [
             'old' => $form,
@@ -236,9 +234,9 @@ final class FormDesignerService
                 form_template_id,
                 version_number,
                 version_description,
-                schema_json::text AS schema_json,
-                ui_schema_json::text AS ui_schema_json,
-                validation_schema_json::text AS validation_schema_json,
+                schema_json AS schema_json,
+                ui_schema_json AS ui_schema_json,
+                validation_schema_json AS validation_schema_json,
                 checksum,
                 is_published,
                 published_at,
@@ -308,6 +306,14 @@ final class FormDesignerService
         return $form;
     }
 
+    private function findTemplateSummary(string $id, string $columns = 'id, slug, name, description, status, access_level, access_key, created_by'): array
+    {
+        $statement = $this->database->pdo()->prepare("SELECT {$columns} FROM form_templates WHERE id = :id LIMIT 1");
+        $statement->execute(['id' => $id]);
+
+        return $statement->fetch() ?: [];
+    }
+
     private function validateDefinitionPayload(array $payload): void
     {
         $errors = [];
@@ -361,6 +367,7 @@ final class FormDesignerService
     {
         $statement = $this->database->pdo()->prepare(<<<'SQL'
             INSERT INTO form_template_versions (
+                id,
                 form_template_id,
                 version_number,
                 schema_json,
@@ -373,20 +380,22 @@ final class FormDesignerService
                 created_by
             )
             VALUES (
+                :id,
                 :form_template_id,
                 :version_number,
-                CAST(:schema_json AS jsonb),
-                CAST(:ui_schema_json AS jsonb),
-                CAST(:validation_schema_json AS jsonb),
+                :schema_json,
+                :ui_schema_json,
+                :validation_schema_json,
                 :version_description,
                 :checksum,
                 :is_published,
-                CASE WHEN CAST(:is_published AS boolean) THEN now() ELSE NULL END,
+                :published_at,
                 :created_by
             )
-            RETURNING id, form_template_id, version_number, version_description, is_published, created_at
         SQL);
+        $id = $this->database->uuid();
         $statement->execute([
+            'id' => $id,
             'form_template_id' => $templateId,
             'version_number' => $version,
             'schema_json' => json_encode($schema, JSON_THROW_ON_ERROR),
@@ -394,18 +403,27 @@ final class FormDesignerService
             'validation_schema_json' => json_encode($schema['fields'], JSON_THROW_ON_ERROR),
             'version_description' => $versionDescription,
             'checksum' => $checksum,
-            'is_published' => $published ? 'true' : 'false',
+            'is_published' => $published ? 1 : 0,
+            'published_at' => $published ? date('Y-m-d H:i:s') : null,
             'created_by' => $createdBy,
         ]);
 
-        return $statement->fetch();
+        $version = $this->database->pdo()->prepare(<<<'SQL'
+            SELECT id, form_template_id, version_number, version_description, is_published, created_at
+            FROM form_template_versions
+            WHERE id = :id
+            LIMIT 1
+        SQL);
+        $version->execute(['id' => $id]);
+
+        return $version->fetch();
     }
 
     private function syncFields(string $versionId, array $schema): void
     {
         $statement = $this->database->pdo()->prepare(<<<'SQL'
             INSERT INTO form_fields (form_template_version_id, field_key, label, field_type, is_required, sort_order, config_json)
-            VALUES (:version_id, :field_key, :label, :field_type, :is_required, :sort_order, CAST(:config_json AS jsonb))
+            VALUES (:version_id, :field_key, :label, :field_type, :is_required, :sort_order, :config_json)
         SQL);
 
         foreach ($schema['fields'] as $index => $field) {
@@ -414,7 +432,7 @@ final class FormDesignerService
                 'field_key' => $field['key'],
                 'label' => $field['label'],
                 'field_type' => $field['type'],
-                'is_required' => ($field['validation']['required'] ?? false) ? 'true' : 'false',
+                'is_required' => ($field['validation']['required'] ?? false) ? 1 : 0,
                 'sort_order' => ($index + 1) * 10,
                 'config_json' => json_encode($field, JSON_THROW_ON_ERROR),
             ]);
